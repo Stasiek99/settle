@@ -19,6 +19,8 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     boolean existsByGroupIdAndUserId(UUID groupId, UUID userId);
 
+    boolean existsByGroupIdAndUserIdAndRole(UUID groupId, UUID userId, MembershipRole role);
+
     @Query("select m.user.id from Membership m where m.group.id = :groupId")
     Set<UUID> findUserIdsByGroupId(@Param("groupId") UUID groupId);
 }

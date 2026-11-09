@@ -1,6 +1,7 @@
 package dev.settle.settlement;
 
 import dev.settle.TestcontainersConfiguration;
+import dev.settle.support.TestAuth;
 import dev.settle.expense.CreateExpenseRequest;
 import dev.settle.expense.CreateExpenseRequest.Participant;
 import dev.settle.expense.ExpenseResponse;
@@ -20,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -47,7 +47,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @Transactional
-@WithMockUser
 class SettlementApiTest {
 
     @Autowired
@@ -82,6 +81,7 @@ class SettlementApiTest {
         for (User member : List.of(ann, bob, cid)) {
             memberships.save(new Membership(group, member, MembershipRole.MEMBER));
         }
+        TestAuth.authenticateAs(ann.getId());
         em.flush();
         em.clear();
     }
@@ -213,6 +213,7 @@ class SettlementApiTest {
     @Test
     void aSettlementIsNotVisibleThroughAnotherGroup() throws Exception {
         Group other = groups.save(new Group("Other", "PLN", ann));
+        memberships.save(new Membership(other, ann, MembershipRole.OWNER));
         em.flush();
         em.clear();
         String location = postSettlement(group.getId(), bob.getId(), ann.getId(), 100)

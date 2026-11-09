@@ -1,6 +1,7 @@
 package dev.settle.expense;
 
 import dev.settle.TestcontainersConfiguration;
+import dev.settle.support.TestAuth;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.Membership;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -39,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @Transactional
-@WithMockUser
 class ExpenseApiTest {
 
     @Autowired
@@ -71,6 +70,7 @@ class ExpenseApiTest {
         memberships.save(new Membership(group, members.get(0), MembershipRole.OWNER));
         memberships.save(new Membership(group, members.get(1), MembershipRole.MEMBER));
         memberships.save(new Membership(group, members.get(2), MembershipRole.MEMBER));
+        TestAuth.authenticateAs(members.getFirst().getId());
         em.flush();
         em.clear();
     }
@@ -253,6 +253,7 @@ class ExpenseApiTest {
     @Test
     void anExpenseIsNotVisibleThroughAnotherGroup() throws Exception {
         Group other = groups.save(new Group("Other", "PLN", members.getFirst()));
+        memberships.save(new Membership(other, members.getFirst(), MembershipRole.OWNER));
         em.flush();
         em.clear();
         String location = postExpense(group.getId(), equalExpense("Pizza", 1000, id(0), id(0), id(1)))

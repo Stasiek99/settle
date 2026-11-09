@@ -10,13 +10,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CreateGroupRequestValidationTest {
-
-    private static final UUID SOME_USER = UUID.randomUUID();
 
     private static ValidatorFactory factory;
     private static Validator validator;
@@ -34,14 +30,14 @@ class CreateGroupRequestValidationTest {
 
     @Test
     void acceptsValidRequestWithLowerCaseCurrency() {
-        assertThat(validator.validate(new CreateGroupRequest("Flat", "pln", SOME_USER))).isEmpty();
+        assertThat(validator.validate(new CreateGroupRequest("Flat", "pln"))).isEmpty();
     }
 
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "PL", "PLNN", "P1N", "zł!"})
     void rejectsInvalidCurrency(String currency) {
-        var violations = validator.validate(new CreateGroupRequest("Flat", currency, SOME_USER));
+        var violations = validator.validate(new CreateGroupRequest("Flat", currency));
 
         assertThat(violations).extracting(v -> v.getPropertyPath().toString()).contains("currency");
     }
@@ -50,15 +46,15 @@ class CreateGroupRequestValidationTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
     void rejectsBlankName(String name) {
-        var violations = validator.validate(new CreateGroupRequest(name, "PLN", SOME_USER));
+        var violations = validator.validate(new CreateGroupRequest(name, "PLN"));
 
         assertThat(violations).extracting(v -> v.getPropertyPath().toString()).contains("name");
     }
 
     @Test
-    void requiresCreator() {
-        var violations = validator.validate(new CreateGroupRequest("Flat", "PLN", null));
-
-        assertThat(violations).extracting(v -> v.getPropertyPath().toString()).containsExactly("createdBy");
+    void hasNoFieldThatLetsTheCallerChooseTheCreator() {
+        assertThat(CreateGroupRequest.class.getRecordComponents())
+                .extracting(java.lang.reflect.RecordComponent::getName)
+                .containsExactly("name", "currency");
     }
 }

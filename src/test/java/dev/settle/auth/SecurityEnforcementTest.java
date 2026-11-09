@@ -68,7 +68,8 @@ class SecurityEnforcementTest {
 
     @ParameterizedTest(name = "{0} {1} requires a token")
     @CsvSource({
-            "GET,/users/{id}",
+            "GET,/users/me",
+            "GET,/groups",
             "POST,/groups",
             "GET,/groups/{id}",
             "GET,/groups/{id}/members",
@@ -103,18 +104,18 @@ class SecurityEnforcementTest {
 
     @Test
     void aValidTokenOpensProtectedEndpoints() throws Exception {
-        send("GET", "/users/{id}", validToken()).andExpect(status().isNotFound());
+        send("GET", "/users/me", validToken()).andExpect(status().isNotFound());
         send("GET", "/groups/{id}/balances", validToken()).andExpect(status().isNotFound());
     }
 
     @Test
     void garbageAndForgedTokensAreRejectedWithAJsonBody() throws Exception {
-        send("GET", "/users/{id}", "garbage")
+        send("GET", "/users/me", "garbage")
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, containsString("invalid_token")))
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.detail").value("The access token is invalid or has expired"));
-        send("GET", "/users/{id}", validToken() + "x").andExpect(status().isUnauthorized());
+        send("GET", "/users/me", validToken() + "x").andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -122,7 +123,7 @@ class SecurityEnforcementTest {
         Clock twoHoursAgo = Clock.fixed(Instant.now().minus(Duration.ofHours(2)), ZoneOffset.UTC);
         String expired = tokenIssuedAt(twoHoursAgo, properties.secret(), properties.issuer());
 
-        send("GET", "/users/{id}", expired)
+        send("GET", "/users/me", expired)
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, containsString("invalid_token")));
     }
@@ -132,8 +133,8 @@ class SecurityEnforcementTest {
         String foreignKey = tokenIssuedAt(Clock.systemUTC(), "a-completely-different-secret-of-32-chars-or-more", properties.issuer());
         String foreignIssuer = tokenIssuedAt(Clock.systemUTC(), properties.secret(), "someone-else");
 
-        send("GET", "/users/{id}", foreignKey).andExpect(status().isUnauthorized());
-        send("GET", "/users/{id}", foreignIssuer).andExpect(status().isUnauthorized());
+        send("GET", "/users/me", foreignKey).andExpect(status().isUnauthorized());
+        send("GET", "/users/me", foreignIssuer).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -147,7 +148,7 @@ class SecurityEnforcementTest {
 
     @Test
     void theErrorBodyNeverEchoesTheRequestedPathOrToken() throws Exception {
-        send("GET", "/users/{id}", "secret-looking-token-value")
+        send("GET", "/users/me", "secret-looking-token-value")
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("secret-looking-token-value"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString(UUID.randomUUID().toString()))));
     }

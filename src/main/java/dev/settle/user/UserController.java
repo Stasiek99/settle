@@ -1,11 +1,9 @@
 package dev.settle.user;
 
+import dev.settle.auth.CurrentUser;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/users")
@@ -17,8 +15,8 @@ public class UserController {
         this.service = service;
     }
 
-    @GetMapping("/{id}")
-    public UserResponse get(@PathVariable UUID id) {
-        return service.get(id);
+    @GetMapping("/me")
+    public UserResponse me(CurrentUser user) {
+        return service.get(user.id());
     }
 }

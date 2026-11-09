@@ -1,5 +1,6 @@
 package dev.settle.group;
 
+import dev.settle.auth.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,32 +19,40 @@ import java.util.UUID;
 public class GroupController {
 
     private final GroupService service;
+    private final GroupAccess access;
 
-    public GroupController(GroupService service) {
+    public GroupController(GroupService service, GroupAccess access) {
         this.service = service;
+        this.access = access;
     }
 
     @PostMapping
-    public ResponseEntity<GroupResponse> create(@Valid @RequestBody CreateGroupRequest request) {
-        GroupResponse created = service.create(request);
+    public ResponseEntity<GroupResponse> create(@Valid @RequestBody CreateGroupRequest request, CurrentUser user) {
+        GroupResponse created = service.create(request, user.id());
         var location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id()).toUri();
         return ResponseEntity.created(location).body(created);
     }
 
-    @GetMapping("/{id}")
-    public GroupResponse get(@PathVariable UUID id) {
-        return service.get(id);
+    @GetMapping
+    public List<GroupResponse> list(CurrentUser user) {
+        return service.listFor(user.id());
     }
 
-    @PostMapping("/{id}/members")
+    @GetMapping("/{groupId}")
+    public GroupResponse get(@PathVariable UUID groupId) {
+        return service.get(groupId);
+    }
+
+    @PostMapping("/{groupId}/members")
     public ResponseEntity<MembershipResponse> addMember(
-            @PathVariable UUID id, @Valid @RequestBody AddMemberRequest request) {
-        return ResponseEntity.status(201).body(service.addMember(id, request));
+            @PathVariable UUID groupId, @Valid @RequestBody AddMemberRequest request, CurrentUser user) {
+        access.requireOwner(groupId, user.id());
+        return ResponseEntity.status(201).body(service.addMember(groupId, request));
     }
 
-    @GetMapping("/{id}/members")
-    public List<MembershipResponse> listMembers(@PathVariable UUID id) {
-        return service.listMembers(id);
+    @GetMapping("/{groupId}/members")
+    public List<MembershipResponse> listMembers(@PathVariable UUID groupId) {
+        return service.listMembers(groupId);
     }
 }

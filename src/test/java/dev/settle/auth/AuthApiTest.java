@@ -71,10 +71,9 @@ class AuthApiTest {
     }
 
     @Test
-    void registersAUserAndReturnsLocationWithoutAnyCredentials() throws Exception {
+    void registersAUserWithoutReturningAnyCredentials() throws Exception {
         register("Ann@Example.com", "Ann", "correct-horse")
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/users/")))
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("ann@example.com"))
                 .andExpect(jsonPath("$.displayName").value("Ann"))
@@ -187,12 +186,14 @@ class AuthApiTest {
         User ann = users.save(new User("ann@example.com", "Ann", passwordEncoder.encode("correct-horse")));
         String token = loginForToken("ann@example.com", "correct-horse");
 
-        mvc.perform(get("/users/{id}", ann.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isOk());
-        mvc.perform(get("/users/{id}", ann.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + token + "x"))
+        mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ann.getId().toString()))
+                .andExpect(jsonPath("$.email").value("ann@example.com"));
+        mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token + "x"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, startsWith("Bearer")));
-        mvc.perform(get("/users/{id}", ann.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer garbage"))
+        mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer garbage"))
                 .andExpect(status().isUnauthorized());
     }
 }

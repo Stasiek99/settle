@@ -7,6 +7,7 @@ import dev.settle.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,11 +26,20 @@ public class GroupService {
     }
 
     @Transactional
-    public GroupResponse create(CreateGroupRequest request) {
-        User creator = findUser(request.createdBy());
+    public GroupResponse create(CreateGroupRequest request, UUID creatorId) {
+        User creator = findUser(creatorId);
         Group group = groups.save(new Group(request.name(), request.currency(), creator));
         memberships.save(new Membership(group, creator, MembershipRole.OWNER));
         return GroupResponse.from(group);
+    }
+
+    public List<GroupResponse> listFor(UUID userId) {
+        return memberships.findAllByUserId(userId).stream()
+                .map(Membership::getGroup)
+                .map(GroupResponse::from)
+                .sorted(Comparator.comparing(GroupResponse::createdAt).reversed()
+                        .thenComparing(GroupResponse::id))
+                .toList();
     }
 
     public GroupResponse get(UUID groupId) {
