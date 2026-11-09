@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -11,12 +12,17 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.BearerTokenErrors;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,6 +30,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Objects;
 
 @Configuration
 @EnableWebSecurity
@@ -53,7 +61,15 @@ class SecurityConfig {
 
     private static BearerTokenResolver ignoringAuthEndpoints() {
         DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
-        return request -> isAuthEndpoint(request) ? null : defaultResolver.resolve(request);
+        return request -> {
+            if (isAuthEndpoint(request)) {
+                return null;
+            }
+            if (Collections.list(request.getHeaders(HttpHeaders.AUTHORIZATION)).size() > 1) {
+                throw new OAuth2AuthenticationException(BearerTokenErrors.invalidRequest("Multiple Authorization headers"));
+            }
+            return defaultResolver.resolve(request);
+        };
     }
 
     private static boolean isAuthEndpoint(HttpServletRequest request) {
@@ -78,7 +94,10 @@ class SecurityConfig {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey(properties))
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.issuer()));
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(properties.issuer()),
+                new JwtClaimValidator<Object>(JwtClaimNames.EXP, Objects::nonNull),
+                new JwtClaimValidator<Object>(JwtClaimNames.SUB, Objects::nonNull)));
         return decoder;
     }
 

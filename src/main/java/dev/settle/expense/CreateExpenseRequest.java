@@ -1,5 +1,6 @@
 package dev.settle.expense;
 
+import dev.settle.common.NoControlCharacters;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record CreateExpenseRequest(
-        @NotBlank @Size(max = 200) String description,
+        @NotBlank @Size(max = 200) @NoControlCharacters String description,
         @NotNull @Positive @Max(MAX_AMOUNT_MINOR) Long amount,
         @NotBlank @Pattern(regexp = "^[A-Za-z]{3}$", message = "must be a 3-letter currency code") String currency,
         @NotNull UUID paidBy,

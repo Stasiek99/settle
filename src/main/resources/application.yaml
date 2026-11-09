@@ -5,6 +5,10 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+  jackson:
+    deserialization:
+      accept-float-as-int: false
+
   jpa:
     # Schema is owned by Flyway; Hibernate only checks that entities match it.
     hibernate:
