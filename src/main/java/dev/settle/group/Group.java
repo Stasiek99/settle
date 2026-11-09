@@ -40,6 +40,9 @@ public class Group {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "rotation_cursor", nullable = false, insertable = false, updatable = false)
+    private long rotationCursor;
+
     protected Group() {
     }
 
@@ -68,6 +71,10 @@ public class Group {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public long getRotationCursor() {
+        return rotationCursor;
     }
 
     @Override
