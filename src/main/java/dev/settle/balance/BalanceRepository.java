@@ -10,7 +10,6 @@ import java.util.UUID;
 
 public interface BalanceRepository extends Repository<Expense, UUID> {
 
-    // Settlements join here as two more UNION ALL branches: +amount for the payer, -amount for the receiver.
     @Query(value = """
             select t.user_id as "userId", cast(sum(t.amount) as bigint) as "balanceMinor"
             from (
@@ -22,6 +21,14 @@ public interface BalanceRepository extends Repository<Expense, UUID> {
                 from expense_splits s
                 join expenses e on e.id = s.expense_id
                 where e.group_id = :groupId
+                union all
+                select st.paid_by as user_id, st.amount_minor as amount
+                from settlements st
+                where st.group_id = :groupId
+                union all
+                select st.paid_to as user_id, -st.amount_minor as amount
+                from settlements st
+                where st.group_id = :groupId
             ) t
             group by t.user_id
             """, nativeQuery = true)

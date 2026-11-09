@@ -1,5 +1,6 @@
 package dev.settle.expense;
 
+import dev.settle.common.Currencies;
 import dev.settle.common.InvalidRequestException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.CreateExpenseRequest.Participant;
@@ -16,7 +17,6 @@ import java.util.Comparator;
 import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -45,7 +45,7 @@ public class ExpenseService {
         Group group = groups.findByIdForUpdate(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
 
-        Currency currency = parseCurrency(request.currency());
+        Currency currency = Currencies.parse(request.currency());
         if (!currency.getCurrencyCode().equals(group.getCurrency())) {
             throw new InvalidRequestException("Expense currency %s does not match the group currency %s"
                     .formatted(currency.getCurrencyCode(), group.getCurrency()));
@@ -129,14 +129,6 @@ public class ExpenseService {
             };
         } catch (IllegalArgumentException e) {
             throw new InvalidRequestException(e.getMessage());
-        }
-    }
-
-    private static Currency parseCurrency(String code) {
-        try {
-            return Currency.getInstance(code.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new InvalidRequestException("Unknown currency " + code);
         }
     }
 
