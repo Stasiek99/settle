@@ -33,9 +33,13 @@ public class User {
     }
 
     public User(String email, String displayName) {
-        this.email = Objects.requireNonNull(email, "email").trim().toLowerCase(Locale.ROOT);
+        this.email = normalizeEmail(Objects.requireNonNull(email, "email"));
         this.displayName = Objects.requireNonNull(displayName, "displayName").trim();
         this.createdAt = Instant.now();
+    }
+
+    public static String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     public UUID getId() {
