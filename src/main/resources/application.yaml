@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: settle
+
+  jpa:
+    # Schema is owned by Flyway; Hibernate only checks that entities match it.
+    hibernate:
+      ddl-auto: validate
+    # Don't keep the DB session open during view rendering (avoids lazy-loading in controllers).
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
