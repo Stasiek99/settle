@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -43,6 +44,9 @@ public class Group {
     @Column(name = "rotation_cursor", nullable = false, insertable = false, updatable = false)
     private long rotationCursor;
 
+    @Version
+    private long version;
+
     protected Group() {
     }
 
@@ -75,6 +79,14 @@ public class Group {
 
     public long getRotationCursor() {
         return rotationCursor;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void rename(String newName) {
+        this.name = Objects.requireNonNull(newName, "name").trim();
     }
 
     @Override

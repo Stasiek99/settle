@@ -3,6 +3,7 @@ package dev.settle.group;
 import dev.settle.common.ConflictException;
 import dev.settle.common.PageQuery;
 import dev.settle.common.PageResponse;
+import dev.settle.common.PreconditionFailedException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.user.User;
 import dev.settle.user.UserRepository;
@@ -42,6 +43,17 @@ public class GroupService {
         return PageResponse.of(
                 memberships.findByUserId(userId, query.toPageable(NEWEST_FIRST)),
                 membership -> GroupResponse.from(membership.getGroup()));
+    }
+
+    @Transactional
+    public GroupResponse rename(UUID groupId, long expectedVersion, UpdateGroupRequest request) {
+        Group group = findGroup(groupId);
+        if (group.getVersion() != expectedVersion) {
+            throw new PreconditionFailedException("The group was modified by someone else; reload it and retry");
+        }
+        group.rename(request.name());
+        groups.flush();
+        return GroupResponse.from(group);
     }
 
     public GroupResponse get(UUID groupId) {
