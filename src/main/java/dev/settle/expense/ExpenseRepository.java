@@ -18,4 +18,5 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     @EntityGraph(attributePaths = "splits")
     Optional<Expense> findByIdAndGroupId(UUID id, UUID groupId);
+
 }

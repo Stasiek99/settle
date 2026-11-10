@@ -23,6 +23,10 @@ public class GroupAccess {
         }
     }
 
+    public boolean isOwner(UUID groupId, UUID userId) {
+        return memberships.existsByGroupIdAndUserIdAndRole(groupId, userId, MembershipRole.OWNER);
+    }
+
     public void requireOwner(UUID groupId, UUID userId) {
         requireMember(groupId, userId);
         if (!memberships.existsByGroupIdAndUserIdAndRole(groupId, userId, MembershipRole.OWNER)) {

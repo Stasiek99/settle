@@ -1,0 +1,96 @@
+<form class="settlement" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <h2 class="settlement__title">Record payment</h2>
+
+  <p-fluid>
+    <div class="settlement__row">
+      <div class="settlement__field">
+        <label [attr.for]="'paidBy'">Who paid</label>
+        <p-select
+          inputId="paidBy"
+          formControlName="paidBy"
+          [options]="members"
+          optionLabel="displayName"
+          optionValue="userId"
+          placeholder="Choose a person"
+          appendTo="body"
+        />
+        @if (form.controls.paidBy.touched && form.controls.paidBy.invalid) {
+          <small class="settlement__hint" role="alert">Choose who paid.</small>
+        }
+      </div>
+
+      <div class="settlement__field">
+        <label [attr.for]="'paidTo'">Who received</label>
+        <p-select
+          inputId="paidTo"
+          formControlName="paidTo"
+          [options]="members"
+          optionLabel="displayName"
+          optionValue="userId"
+          placeholder="Choose a person"
+          appendTo="body"
+        />
+        @if (form.controls.paidTo.touched && form.controls.paidTo.invalid) {
+          <small class="settlement__hint" role="alert">Choose who received the money.</small>
+        }
+      </div>
+    </div>
+
+    <div class="settlement__row">
+      <div class="settlement__field">
+        <label [attr.for]="'amount'">Amount</label>
+        <p-inputnumber
+          inputId="amount"
+          formControlName="amount"
+          mode="currency"
+          [currency]="currency"
+          [locale]="locale"
+          [minFractionDigits]="digits"
+          [maxFractionDigits]="digits"
+        />
+        @if (form.controls.amount.touched && form.controls.amount.invalid) {
+          <small class="settlement__hint" role="alert">Enter an amount greater than zero.</small>
+        }
+      </div>
+
+      <div class="settlement__field">
+        <label [attr.for]="'settledOn'">Date</label>
+        <p-datepicker
+          inputId="settledOn"
+          formControlName="settledOn"
+          dateFormat="d M yy"
+          [showIcon]="true"
+          appendTo="body"
+        />
+        @if (form.controls.settledOn.touched && form.controls.settledOn.invalid) {
+          <small class="settlement__hint" role="alert">Pick a date.</small>
+        }
+      </div>
+    </div>
+
+    @if (preview(); as text) {
+      <p class="settlement__preview" aria-live="polite">{{ text }}</p>
+    }
+
+    @if (form.errors?.['samePerson']) {
+      <p-message severity="error" role="alert">
+        Choose two different people: nobody can pay themselves.
+      </p-message>
+    }
+
+    @if (error(); as message) {
+      <p-message severity="error" role="alert">{{ message }}</p-message>
+    }
+  </p-fluid>
+
+  <div class="settlement__actions">
+    <a
+      pButton
+      severity="secondary"
+      [text]="true"
+      label="Cancel"
+      [routerLink]="['/groups', store.groupId(), 'settlements']"
+    ></a>
+    <p-button type="submit" label="Save payment" icon="pi pi-check" [loading]="saving()" />
+  </div>
+</form>

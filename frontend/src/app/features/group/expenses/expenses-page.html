@@ -1,6 +1,12 @@
+<p-confirmdialog />
+
 <div class="section__toolbar">
   <a pButton routerLink="new" label="Add expense" icon="pi pi-plus"></a>
 </div>
+
+@if (deleteError(); as message) {
+  <p-message severity="error" role="alert">{{ message }}</p-message>
+}
 
 @if (pager.error(); as message) {
   <p-message severity="error" role="alert">{{ message }}</p-message>
@@ -40,6 +46,28 @@
               <p-tag severity="secondary" [value]="splitLabel(expense.splitType)" />
             </div>
           </div>
+          @if (canModify(expense)) {
+            <div class="section__actions">
+              <a
+                pButton
+                [routerLink]="[expense.id, 'edit']"
+                label="Edit"
+                icon="pi pi-pencil"
+                severity="secondary"
+                [text]="true"
+                size="small"
+              ></a>
+              <p-button
+                label="Delete"
+                icon="pi pi-trash"
+                severity="danger"
+                [text]="true"
+                size="small"
+                [loading]="deletingId() === expense.id"
+                (onClick)="confirmDelete(expense)"
+              />
+            </div>
+          }
         </p-card>
       </li>
     }

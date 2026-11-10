@@ -63,6 +63,28 @@ section {
     list-style: none;
   }
 
+  &__inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+
+    a {
+      text-decoration: none;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+
+    a {
+      text-decoration: none;
+    }
+  }
+
   &__empty {
     margin: 0;
     text-align: center;

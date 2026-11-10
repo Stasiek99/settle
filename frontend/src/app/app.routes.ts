@@ -46,6 +46,14 @@ export const routes: Routes = [
             title: 'New expense · Settle',
           },
           {
+            path: 'expenses/:expenseId/edit',
+            loadComponent: () =>
+              import('./features/group/expense-form/expense-form-page').then(
+                (m) => m.ExpenseFormPage,
+              ),
+            title: 'Edit expense · Settle',
+          },
+          {
             path: 'expenses',
             loadComponent: () =>
               import('./features/group/expenses/expenses-page').then((m) => m.ExpensesPage),
@@ -56,6 +64,14 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/group/balances/balances-page').then((m) => m.BalancesPage),
             title: 'Balances · Settle',
+          },
+          {
+            path: 'settlements/new',
+            loadComponent: () =>
+              import('./features/group/settlement-form/settlement-form-page').then(
+                (m) => m.SettlementFormPage,
+              ),
+            title: 'Record payment · Settle',
           },
           {
             path: 'settlements',

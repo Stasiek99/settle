@@ -126,3 +126,26 @@ export function buildRequest(input: ExpenseInput, digits: number): CreateExpense
     participants,
   };
 }
+
+export function percentsFromShares(shares: number[], total: number): number[] {
+  if (total <= 0 || shares.length === 0) {
+    return shares.map(() => 0);
+  }
+  const exact = shares.map((share) => (share * FULL_BASIS_POINTS) / total);
+  const floors = exact.map((value) => Math.floor(value));
+  const leftover = FULL_BASIS_POINTS - floors.reduce((sum, value) => sum + value, 0);
+  if (leftover < 0 || leftover > shares.length) {
+    return exact.map((value) => Math.round(value) / 100);
+  }
+  exact
+    .map((value, index) => ({ index, fraction: value - floors[index] }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index)
+    .slice(0, leftover)
+    .forEach(({ index }) => floors[index]++);
+  return floors.map((basisPoints) => basisPoints / 100);
+}
+
+export function parseDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}

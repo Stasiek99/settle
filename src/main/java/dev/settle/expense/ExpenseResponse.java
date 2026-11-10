@@ -16,7 +16,8 @@ public record ExpenseResponse(
         SplitType splitType,
         LocalDate expenseDate,
         Instant createdAt,
-        List<SplitResponse> splits
+        List<SplitResponse> splits,
+        long version
 ) {
 
     public record SplitResponse(UUID userId, long amount) {
@@ -39,6 +40,7 @@ public record ExpenseResponse(
                 expense.getSplitType(),
                 expense.getExpenseDate(),
                 expense.getCreatedAt(),
-                splits);
+                splits,
+                expense.getVersion());
     }
 }

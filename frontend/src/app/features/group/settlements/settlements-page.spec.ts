@@ -5,6 +5,7 @@ import {
   TestRequest,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
 import { Page, Settlement, SettlementSuggestions } from '../../../core/models';
@@ -43,6 +44,7 @@ describe('SettlementsPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         providePrimeNG(),
+        provideRouter([]),
         {
           provide: GroupStore,
           useValue: { groupId: () => 'g1', nameOf: (id: string) => NAMES[id] ?? 'Unknown member' },
@@ -95,6 +97,24 @@ describe('SettlementsPage', () => {
     expect(content).toContain('pays');
     expect(content).toContain('Ann');
     expect(content).toContain('$25.00');
+  });
+
+  it('offers to record a payment', async () => {
+    const fixture = await render();
+
+    expect(query<HTMLAnchorElement>(fixture, 'a[href="/new"]')?.textContent).toContain(
+      'Record payment',
+    );
+  });
+
+  it('lets a suggested transfer be recorded with one click', async () => {
+    const fixture = await render({
+      suggestions: { currency: 'USD', transfers: [{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }] },
+    });
+
+    const link = query<HTMLAnchorElement>(fixture, 'section a[href^="/new?"]');
+    expect(link?.textContent).toContain('Record');
+    expect(link?.getAttribute('href')).toBe('/new?from=u2&to=u1&amount=2500');
   });
 
   it('says so when nobody owes anything', async () => {

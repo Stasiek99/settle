@@ -62,6 +62,7 @@ export interface Expense {
   expenseDate: string;
   createdAt: string;
   splits: ExpenseSplit[];
+  version: number;
 }
 
 export interface Settlement {
@@ -111,4 +112,12 @@ export interface CreateExpenseRequest {
   splitType: SplitType;
   expenseDate?: string;
   participants: ParticipantRequest[];
+}
+
+export interface CreateSettlementRequest {
+  paidBy: string;
+  paidTo: string;
+  amount: number;
+  currency: string;
+  settledOn?: string;
 }

@@ -1,10 +1,11 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../api.config';
 import {
   CreateExpenseRequest,
+  CreateSettlementRequest,
   Expense,
   Group,
   GroupBalances,
@@ -13,6 +14,10 @@ import {
   Settlement,
   SettlementSuggestions,
 } from '../models';
+
+function ifMatch(version: number): HttpHeaders {
+  return new HttpHeaders({ 'If-Match': `"${version}"` });
+}
 
 @Injectable({ providedIn: 'root' })
 export class GroupsApi {
@@ -39,6 +44,33 @@ export class GroupsApi {
   expenses(groupId: string, page: number, size: number): Observable<Page<Expense>> {
     const params = new HttpParams().set('page', page).set('size', size);
     return this.http.get<Page<Expense>>(`${this.baseUrl}/groups/${groupId}/expenses`, { params });
+  }
+
+  expense(groupId: string, expenseId: string): Observable<Expense> {
+    return this.http.get<Expense>(`${this.baseUrl}/groups/${groupId}/expenses/${expenseId}`);
+  }
+
+  updateExpense(
+    groupId: string,
+    expenseId: string,
+    version: number,
+    request: CreateExpenseRequest,
+  ): Observable<Expense> {
+    return this.http.put<Expense>(
+      `${this.baseUrl}/groups/${groupId}/expenses/${expenseId}`,
+      request,
+      { headers: ifMatch(version) },
+    );
+  }
+
+  deleteExpense(groupId: string, expenseId: string, version: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/groups/${groupId}/expenses/${expenseId}`, {
+      headers: ifMatch(version),
+    });
+  }
+
+  createSettlement(groupId: string, request: CreateSettlementRequest): Observable<Settlement> {
+    return this.http.post<Settlement>(`${this.baseUrl}/groups/${groupId}/settlements`, request);
   }
 
   createExpense(groupId: string, request: CreateExpenseRequest): Observable<Expense> {

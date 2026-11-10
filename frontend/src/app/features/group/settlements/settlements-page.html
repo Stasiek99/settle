@@ -1,3 +1,7 @@
+<div class="section__toolbar">
+  <a pButton routerLink="new" label="Record payment" icon="pi pi-plus"></a>
+</div>
+
 <section aria-labelledby="suggested-heading">
   <h2 id="suggested-heading" class="section__heading">Suggested transfers</h2>
 
@@ -26,7 +30,22 @@
                   <strong>{{ store.nameOf(transfer.paidBy) }}</strong> pays
                   <strong>{{ store.nameOf(transfer.paidTo) }}</strong>
                 </span>
-                <strong>{{ transfer.amount | money: result.currency }}</strong>
+                <span class="section__inline">
+                  <strong>{{ transfer.amount | money: result.currency }}</strong>
+                  <a
+                    pButton
+                    routerLink="new"
+                    label="Record"
+                    severity="secondary"
+                    [text]="true"
+                    size="small"
+                    [queryParams]="{
+                      from: transfer.paidBy,
+                      to: transfer.paidTo,
+                      amount: transfer.amount,
+                    }"
+                  ></a>
+                </span>
               </div>
             </p-card>
           </li>

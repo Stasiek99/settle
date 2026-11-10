@@ -5,6 +5,7 @@ import {
   DestroyRef,
   effect,
   inject,
+  input,
   LOCALE_ID,
   signal,
   untracked,
@@ -18,6 +19,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { startWith } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -27,12 +29,13 @@ import { FluidModule } from 'primeng/fluid';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { SkeletonModule } from 'primeng/skeleton';
 import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { GroupsApi } from '../../../core/groups/groups.api';
-import { SplitType } from '../../../core/models';
+import { Expense, SplitType } from '../../../core/models';
 import { formatMoney, minorUnitDigits } from '../../../core/money';
 import { problemMessage } from '../../../core/problem';
 import { GroupStore } from '../group-store';
@@ -45,7 +48,10 @@ import {
   includedOf,
   MAX_AMOUNT_MINOR,
   ParticipantInput,
+  parseDate,
+  percentsFromShares,
   splitProblem,
+  toMajor,
   toMinor,
 } from './expense-form.logic';
 
@@ -74,6 +80,7 @@ interface Summary {
     MessageModule,
     SelectModule,
     SelectButtonModule,
+    SkeletonModule,
   ],
   templateUrl: './expense-form-page.html',
   styleUrl: './expense-form-page.scss',
@@ -103,6 +110,14 @@ export class ExpenseFormPage {
     { label: 'Percentage', value: 'PERCENTAGE' },
     { label: 'Exact', value: 'EXACT' },
   ];
+
+  readonly expenseId = input<string>();
+
+  protected readonly editing = computed(() => this.expenseId() !== undefined);
+  protected readonly existing = signal<Expense | null>(null);
+  protected readonly loadingExisting = signal(false);
+  protected readonly loadError = signal<string | null>(null);
+  protected readonly stale = signal(false);
 
   protected readonly saving = signal(false);
   protected readonly submitted = signal(false);
@@ -186,6 +201,13 @@ export class ExpenseFormPage {
 
   constructor() {
     effect(() => {
+      const id = this.expenseId();
+      if (id) {
+        untracked(() => this.loadExisting(id));
+      }
+    });
+
+    effect(() => {
       const me = this.auth.user();
       untracked(() => {
         const paidBy = this.form.controls.paidBy;
@@ -202,6 +224,64 @@ export class ExpenseFormPage {
           this.splitEvenly();
         }
       });
+  }
+
+  protected reload(): void {
+    const id = this.expenseId();
+    if (id) {
+      this.loadExisting(id);
+    }
+  }
+
+  private loadExisting(expenseId: string): void {
+    this.loadingExisting.set(true);
+    this.loadError.set(null);
+    this.stale.set(false);
+    this.error.set(null);
+    this.api
+      .expense(this.store.groupId(), expenseId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (expense) => {
+          this.existing.set(expense);
+          this.populate(expense);
+          this.loadingExisting.set(false);
+        },
+        error: (err: unknown) => {
+          this.loadError.set(problemMessage(err));
+          this.loadingExisting.set(false);
+        },
+      });
+  }
+
+  private populate(expense: Expense): void {
+    const shareByUser = new Map(expense.splits.map((split) => [split.userId, split.amount]));
+    const percentByUser = new Map<string, number>();
+    if (expense.splitType === 'PERCENTAGE') {
+      const percents = percentsFromShares(
+        expense.splits.map((split) => split.amount),
+        expense.amount,
+      );
+      expense.splits.forEach((split, index) => percentByUser.set(split.userId, percents[index]));
+    }
+
+    this.form.controls.splitType.setValue(expense.splitType, { emitEvent: false });
+    this.participants.controls.forEach((row) => {
+      const userId = row.controls.userId.value;
+      const share = shareByUser.get(userId);
+      row.patchValue({
+        included: share !== undefined,
+        percent: percentByUser.get(userId) ?? null,
+        amount: share === undefined ? null : toMajor(share, this.digits),
+      });
+    });
+    this.form.patchValue({
+      description: expense.description,
+      amount: toMajor(expense.amount, this.digits),
+      expenseDate: parseDate(expense.expenseDate),
+      paidBy: expense.paidBy,
+    });
+    this.form.markAsPristine();
   }
 
   protected splitEvenly(): void {
@@ -224,7 +304,7 @@ export class ExpenseFormPage {
 
   protected submit(): void {
     this.submitted.set(true);
-    if (this.form.invalid || this.saving()) {
+    if (this.form.invalid || this.saving() || (this.editing() && !this.existing())) {
       this.form.markAllAsTouched();
       return;
     }
@@ -243,16 +323,19 @@ export class ExpenseFormPage {
     );
     this.saving.set(true);
     this.error.set(null);
+    this.stale.set(false);
     const groupId = this.store.groupId();
-    this.api
-      .createExpense(groupId, request)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => void this.router.navigate(['/groups', groupId, 'expenses']),
-        error: (err: unknown) => {
-          this.error.set(problemMessage(err));
-          this.saving.set(false);
-        },
-      });
+    const existing = this.existing();
+    const save$ = existing
+      ? this.api.updateExpense(groupId, existing.id, existing.version, request)
+      : this.api.createExpense(groupId, request);
+    save$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => void this.router.navigate(['/groups', groupId, 'expenses']),
+      error: (err: unknown) => {
+        this.stale.set(err instanceof HttpErrorResponse && err.status === 412);
+        this.error.set(problemMessage(err));
+        this.saving.set(false);
+      },
+    });
   }
 }

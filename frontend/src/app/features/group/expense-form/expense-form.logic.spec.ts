@@ -6,6 +6,8 @@ import {
   ExpenseInput,
   formatDate,
   ParticipantInput,
+  parseDate,
+  percentsFromShares,
   splitProblem,
   toBasisPoints,
   toMajor,
@@ -222,5 +224,50 @@ describe('buildRequest', () => {
 
   it('respects a currency without minor units', () => {
     expect(buildRequest({ ...base, currency: 'JPY', amount: 1500 }, 0).amount).toBe(1500);
+  });
+});
+
+describe('percentsFromShares', () => {
+  it('turns shares back into percentages that add up to 100', () => {
+    expect(percentsFromShares([5000, 5000], 10000)).toEqual([50, 50]);
+    expect(percentsFromShares([2562, 1098], 3660)).toEqual([70, 30]);
+  });
+
+  it('hands the leftover basis points to the biggest fractions', () => {
+    const percents = percentsFromShares([3334, 3333, 3333], 10000);
+
+    expect(percents).toEqual([33.34, 33.33, 33.33]);
+    expect(percents.reduce((a, b) => a + b, 0)).toBeCloseTo(100);
+  });
+
+  it('always adds up to exactly 100 for awkward amounts', () => {
+    for (const total of [1001, 4550, 12345, 99999]) {
+      const shares = [
+        Math.floor(total / 3) + 1,
+        Math.floor(total / 3),
+        total - 2 * Math.floor(total / 3) - 1,
+      ];
+      const bp = percentsFromShares(shares, total).map((p) => Math.round(p * 100));
+
+      expect(bp.reduce((a, b) => a + b, 0)).toBe(10_000);
+    }
+  });
+
+  it('copes with nothing to split', () => {
+    expect(percentsFromShares([], 100)).toEqual([]);
+    expect(percentsFromShares([0, 0], 0)).toEqual([0, 0]);
+  });
+
+  it('falls back to plain rounding when the shares do not add up to the total', () => {
+    expect(percentsFromShares([100, 100], 1000)).toEqual([10, 10]);
+  });
+});
+
+describe('parseDate', () => {
+  it('reads a calendar day as a local date, not UTC', () => {
+    const date = parseDate('2026-11-09');
+
+    expect([date.getFullYear(), date.getMonth(), date.getDate()]).toEqual([2026, 10, 9]);
+    expect(formatDate(date)).toBe('2026-11-09');
   });
 });

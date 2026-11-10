@@ -99,7 +99,7 @@ class QueryCountTest {
         for (int i = 0; i < itemCount; i++) {
             User payer = members.get(i % members.size());
             Expense expense = new Expense(group, payer, "expense " + i,
-                    Money.ofMinor(100L * members.size(), PLN), SplitType.EQUAL, LocalDate.now());
+                    Money.ofMinor(100L * members.size(), PLN), SplitType.EQUAL, LocalDate.now(), 0);
             members.forEach(m -> expense.addSplit(m, Money.ofMinor(100, PLN)));
             expenses.save(expense);
 
