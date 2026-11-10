@@ -29,7 +29,7 @@ public class ExpenseSplit {
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
     private User user;
 
-    @Column(name = "amount_minor", nullable = false, updatable = false)
+    @Column(name = "amount_minor", nullable = false)
     private long amountMinor;
 
     protected ExpenseSplit() {
@@ -51,6 +51,10 @@ public class ExpenseSplit {
 
     public long getAmountMinor() {
         return amountMinor;
+    }
+
+    void setAmountMinor(long amountMinor) {
+        this.amountMinor = amountMinor;
     }
 
     @Override

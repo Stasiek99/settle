@@ -1,0 +1,34 @@
+<main class="hero">
+  <div class="hero__paths" aria-hidden="true">
+    @for (layer of layers; track layer.position) {
+      <svg viewBox="0 0 696 316" preserveAspectRatio="xMidYMid slice" fill="none">
+        @for (path of layer.paths; track path.id) {
+          <path
+            stroke="currentColor"
+            [attr.d]="path.d"
+            [attr.stroke-width]="path.width"
+            [attr.stroke-opacity]="path.opacity"
+            [style.--i]="path.id"
+          />
+        }
+      </svg>
+    }
+  </div>
+
+  <div class="hero__content">
+    @if (title()) {
+      <h1 class="hero__title" [attr.aria-label]="title()">
+        @for (word of words(); track $index) {
+          <span class="hero__word" aria-hidden="true">
+            @for (letter of word.letters; track $index) {
+              <span class="hero__letter" [style.--delay]="letter.delay + 's'">{{
+                letter.char
+              }}</span>
+            }
+          </span>
+        }
+      </h1>
+    }
+    <ng-content />
+  </div>
+</main>

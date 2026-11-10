@@ -1,0 +1,82 @@
+<p-confirmdialog />
+
+<div class="section__toolbar">
+  <a pButton routerLink="new" label="Add expense" icon="pi pi-plus"></a>
+</div>
+
+@if (deleteError(); as message) {
+  <p-message severity="error" role="alert">{{ message }}</p-message>
+}
+
+@if (pager.error(); as message) {
+  <p-message severity="error" role="alert">{{ message }}</p-message>
+  <p-button label="Try again" icon="pi pi-refresh" severity="secondary" (onClick)="pager.load(0)" />
+} @else if (pager.loading()) {
+  <div class="section__list" aria-busy="true">
+    @for (placeholder of [1, 2, 3]; track placeholder) {
+      <p-skeleton height="5.5rem" />
+    }
+  </div>
+} @else if (pager.items().length === 0) {
+  <p-card>
+    <p class="section__empty">No expenses yet.</p>
+  </p-card>
+} @else {
+  <ul class="section__list">
+    @for (expense of pager.items(); track expense.id) {
+      <li>
+        <p-card>
+          <div class="section__item">
+            <div>
+              <h2>{{ expense.description }}</h2>
+              <small>
+                {{ expense.expenseDate | date: 'mediumDate' }} · Paid by
+                {{ store.nameOf(expense.paidBy) }}
+              </small>
+              <ul class="section__shares" aria-label="Shares">
+                @for (split of expense.splits; track split.userId) {
+                  <li>
+                    {{ store.nameOf(split.userId) }}: {{ split.amount | money: expense.currency }}
+                  </li>
+                }
+              </ul>
+            </div>
+            <div class="section__side">
+              <strong>{{ expense.amount | money: expense.currency }}</strong>
+              <p-tag severity="secondary" [value]="splitLabel(expense.splitType)" />
+            </div>
+          </div>
+          @if (canModify(expense)) {
+            <div class="section__actions">
+              <a
+                pButton
+                [routerLink]="[expense.id, 'edit']"
+                label="Edit"
+                icon="pi pi-pencil"
+                severity="secondary"
+                [text]="true"
+                size="small"
+              ></a>
+              <p-button
+                label="Delete"
+                icon="pi pi-trash"
+                severity="danger"
+                [text]="true"
+                size="small"
+                [loading]="deletingId() === expense.id"
+                (onClick)="confirmDelete(expense)"
+              />
+            </div>
+          }
+        </p-card>
+      </li>
+    }
+  </ul>
+
+  <p-paginator
+    [rows]="pager.size"
+    [first]="pager.first()"
+    [totalRecords]="pager.total()"
+    (onPageChange)="onPageChange($event)"
+  />
+}

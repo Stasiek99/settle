@@ -1,0 +1,191 @@
+<form class="expense" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <h2 class="expense__title">{{ editing() ? 'Edit expense' : 'New expense' }}</h2>
+
+  @if (editing() && loadingExisting()) {
+    <div class="expense__loading" aria-busy="true">
+      <p-skeleton height="2.5rem" />
+      <p-skeleton height="2.5rem" />
+      <p-skeleton height="8rem" />
+    </div>
+  } @else if (loadError(); as message) {
+    <p-message severity="error" role="alert">{{ message }}</p-message>
+    <div class="expense__actions">
+      <a
+        pButton
+        severity="secondary"
+        [text]="true"
+        label="Back to expenses"
+        [routerLink]="['/groups', store.groupId(), 'expenses']"
+      ></a>
+      <p-button label="Try again" icon="pi pi-refresh" (onClick)="reload()" />
+    </div>
+  } @else {
+    <p-fluid>
+      <div class="expense__field">
+        <label for="description">Description</label>
+        <input
+          pInputText
+          id="description"
+          formControlName="description"
+          maxlength="200"
+          autocomplete="off"
+        />
+        @if (form.controls.description.touched && form.controls.description.invalid) {
+          <small class="expense__hint" role="alert">Describe what the money was spent on.</small>
+        }
+      </div>
+
+      <div class="expense__row">
+        <div class="expense__field">
+          <label [attr.for]="'amount'">Amount</label>
+          <p-inputnumber
+            inputId="amount"
+            formControlName="amount"
+            mode="currency"
+            [currency]="currency"
+            [locale]="locale"
+            [minFractionDigits]="digits"
+            [maxFractionDigits]="digits"
+          />
+          @if (form.controls.amount.touched && form.controls.amount.invalid) {
+            <small class="expense__hint" role="alert">Enter an amount greater than zero.</small>
+          }
+        </div>
+
+        <div class="expense__field">
+          <label [attr.for]="'expenseDate'">Date</label>
+          <p-datepicker
+            inputId="expenseDate"
+            formControlName="expenseDate"
+            dateFormat="d M yy"
+            [showIcon]="true"
+            appendTo="body"
+          />
+          @if (form.controls.expenseDate.touched && form.controls.expenseDate.invalid) {
+            <small class="expense__hint" role="alert">Pick a date.</small>
+          }
+        </div>
+      </div>
+
+      <div class="expense__field">
+        <label [attr.for]="'paidBy'">Paid by</label>
+        <p-select
+          inputId="paidBy"
+          formControlName="paidBy"
+          [options]="members"
+          optionLabel="displayName"
+          optionValue="userId"
+          placeholder="Who paid?"
+          appendTo="body"
+        />
+        @if (form.controls.paidBy.touched && form.controls.paidBy.invalid) {
+          <small class="expense__hint" role="alert">Choose who paid.</small>
+        }
+      </div>
+
+      <div class="expense__field">
+        <span id="split-label" class="expense__label">Split</span>
+        <p-selectbutton
+          formControlName="splitType"
+          [options]="splitOptions"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false"
+          ariaLabelledBy="split-label"
+        />
+      </div>
+
+      <fieldset class="expense__people">
+        <legend>Split between</legend>
+
+        <div formArrayName="participants" class="expense__list">
+          @for (row of participants.controls; track $index) {
+            <div class="expense__person" [formGroupName]="$index">
+              <p-checkbox
+                [inputId]="'included-' + $index"
+                formControlName="included"
+                [binary]="true"
+              />
+              <label class="expense__name" [attr.for]="'included-' + $index">
+                {{ store.nameOf(row.controls.userId.value) }}
+              </label>
+
+              @if (row.controls.included.value) {
+                @if (splitType() === 'PERCENTAGE') {
+                  <p-inputnumber
+                    class="expense__share"
+                    formControlName="percent"
+                    suffix=" %"
+                    [locale]="locale"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                    [ariaLabel]="'Percentage for ' + store.nameOf(row.controls.userId.value)"
+                  />
+                } @else if (splitType() === 'EXACT') {
+                  <p-inputnumber
+                    class="expense__share"
+                    formControlName="amount"
+                    mode="currency"
+                    [currency]="currency"
+                    [locale]="locale"
+                    [minFractionDigits]="digits"
+                    [maxFractionDigits]="digits"
+                    [ariaLabel]="'Amount for ' + store.nameOf(row.controls.userId.value)"
+                  />
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <div class="expense__summary" aria-live="polite">
+          <span [class.expense__summary--bad]="!summary().ok">{{ summary().text }}</span>
+          @if (splitType() !== 'EQUAL') {
+            <p-button
+              type="button"
+              label="Split evenly"
+              icon="pi pi-equals"
+              severity="secondary"
+              [text]="true"
+              size="small"
+              (onClick)="splitEvenly()"
+            />
+          }
+        </div>
+
+        @if (submitted() && form.errors?.['split']; as problem) {
+          <p-message severity="error" role="alert">{{ problem }}</p-message>
+        }
+      </fieldset>
+
+      @if (error(); as message) {
+        <p-message severity="error" role="alert">{{ message }}</p-message>
+        @if (stale()) {
+          <p-button
+            type="button"
+            label="Load the latest version"
+            icon="pi pi-refresh"
+            severity="secondary"
+            (onClick)="reload()"
+          />
+        }
+      }
+    </p-fluid>
+
+    <div class="expense__actions">
+      <a
+        pButton
+        severity="secondary"
+        [text]="true"
+        label="Cancel"
+        [routerLink]="['/groups', store.groupId(), 'expenses']"
+      ></a>
+      <p-button
+        type="submit"
+        [label]="editing() ? 'Save changes' : 'Save expense'"
+        icon="pi pi-check"
+        [loading]="saving()"
+      />
+    </div>
+  }
+</form>

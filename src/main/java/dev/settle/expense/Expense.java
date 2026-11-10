@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -24,7 +25,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Currency;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -41,13 +44,13 @@ public class Expense {
     private Group group;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "paid_by", nullable = false, updatable = false)
+    @JoinColumn(name = "paid_by", nullable = false)
     private User paidBy;
 
     @Column(nullable = false, length = 200)
     private String description;
 
-    @Column(name = "amount_minor", nullable = false, updatable = false)
+    @Column(name = "amount_minor", nullable = false)
     private long amountMinor;
 
     @JdbcTypeCode(SqlTypes.CHAR)
@@ -55,7 +58,7 @@ public class Expense {
     private String currency;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "split_type", nullable = false, length = 20, updatable = false)
+    @Column(name = "split_type", nullable = false, length = 20)
     private SplitType splitType;
 
     @Column(name = "expense_date", nullable = false)
@@ -63,6 +66,15 @@ public class Expense {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Column(name = "split_cursor", nullable = false, updatable = false)
+    private long splitCursor;
+
+    @Version
+    private long version;
 
     @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 100)
@@ -72,7 +84,7 @@ public class Expense {
     }
 
     public Expense(Group group, User paidBy, String description, Money amount, SplitType splitType,
-                   LocalDate expenseDate) {
+                   LocalDate expenseDate, long splitCursor) {
         this.group = Objects.requireNonNull(group, "group");
         this.paidBy = Objects.requireNonNull(paidBy, "paidBy");
         this.description = Objects.requireNonNull(description, "description").trim();
@@ -82,6 +94,48 @@ public class Expense {
         this.splitType = Objects.requireNonNull(splitType, "splitType");
         this.expenseDate = Objects.requireNonNull(expenseDate, "expenseDate");
         this.createdAt = Instant.now();
+        this.updatedAt = createdAt;
+        this.splitCursor = splitCursor;
+    }
+
+    public void update(User paidBy, String description, Money amount, SplitType splitType, LocalDate expenseDate) {
+        Objects.requireNonNull(amount, "amount");
+        if (!amount.currency().getCurrencyCode().equals(currency)) {
+            throw new IllegalArgumentException("The currency of an expense cannot change");
+        }
+        this.paidBy = Objects.requireNonNull(paidBy, "paidBy");
+        this.description = Objects.requireNonNull(description, "description").trim();
+        this.amountMinor = amount.minor();
+        this.splitType = Objects.requireNonNull(splitType, "splitType");
+        this.expenseDate = Objects.requireNonNull(expenseDate, "expenseDate");
+        touch();
+    }
+
+    private void touch() {
+        Instant now = Instant.now();
+        this.updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1_000);
+    }
+
+    public void replaceSplits(Map<User, Money> shares) {
+        Map<UUID, Money> byUserId = new LinkedHashMap<>();
+        shares.forEach((user, share) -> byUserId.put(user.getId(), share));
+
+        splits.removeIf(split -> !byUserId.containsKey(split.getUser().getId()));
+        for (ExpenseSplit split : splits) {
+            split.setAmountMinor(requireSameCurrency(byUserId.remove(split.getUser().getId())).minor());
+        }
+        shares.forEach((user, share) -> {
+            if (byUserId.containsKey(user.getId())) {
+                addSplit(user, share);
+            }
+        });
+    }
+
+    private Money requireSameCurrency(Money share) {
+        if (!share.currency().getCurrencyCode().equals(currency)) {
+            throw new IllegalArgumentException("Split currency differs from the expense currency");
+        }
+        return share;
     }
 
     public void addSplit(User user, Money amount) {
@@ -129,6 +183,14 @@ public class Expense {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public long getSplitCursor() {
+        return splitCursor;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     public List<ExpenseSplit> getSplits() {

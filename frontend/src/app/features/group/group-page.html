@@ -1,0 +1,46 @@
+<section class="group">
+  <a class="group__back" routerLink="/groups"
+    ><i class="pi pi-arrow-left" aria-hidden="true"></i> Groups</a
+  >
+
+  @switch (store.status()) {
+    @case ('ready') {
+      @if (store.group(); as group) {
+        <header class="group__header">
+          <h1>{{ group.name }}</h1>
+          <p-tag severity="secondary" [value]="group.currency" />
+        </header>
+
+        <nav class="group__tabs" aria-label="Group sections">
+          <a routerLink="expenses" routerLinkActive="is-active" ariaCurrentWhenActive="page"
+            >Expenses</a
+          >
+          <a routerLink="balances" routerLinkActive="is-active" ariaCurrentWhenActive="page"
+            >Balances</a
+          >
+          <a routerLink="settlements" routerLinkActive="is-active" ariaCurrentWhenActive="page"
+            >Settlements</a
+          >
+        </nav>
+
+        <router-outlet />
+      }
+    }
+    @case ('error') {
+      <p-message severity="error" role="alert">{{ store.error() }}</p-message>
+      <p-button
+        label="Try again"
+        icon="pi pi-refresh"
+        severity="secondary"
+        (onClick)="store.reload()"
+      />
+    }
+    @default {
+      <div class="group__loading" aria-busy="true">
+        <p-skeleton height="2.5rem" width="14rem" />
+        <p-skeleton height="2.25rem" />
+        <p-skeleton height="5rem" />
+      </div>
+    }
+  }
+</section>

@@ -32,6 +32,10 @@ You'll need JDK 21 and Docker (Docker Desktop must be running).
 
 3. Check that it's alive: <http://localhost:8080/actuator/health> should return `{"status":"UP"}`.
 
+## Frontend
+
+The Angular app lives in `frontend/` (see its README). With the API running, start it with `cd frontend && npm ci && npm start` and open <http://localhost:4200>.
+
 ## Running in Docker
 
 The `Dockerfile` builds a small image (multi-stage, layered jar, non-root user, `prod` profile with JSON logs). To run it together with the database:

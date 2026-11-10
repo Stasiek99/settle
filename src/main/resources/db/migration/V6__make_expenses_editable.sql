@@ -1,0 +1,4 @@
+ALTER TABLE expenses
+    ADD COLUMN version      BIGINT      NOT NULL DEFAULT 0,
+    ADD COLUMN split_cursor BIGINT      NOT NULL DEFAULT 0,
+    ADD COLUMN updated_at   TIMESTAMPTZ NOT NULL DEFAULT now();

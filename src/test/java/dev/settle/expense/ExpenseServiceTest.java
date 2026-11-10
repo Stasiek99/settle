@@ -4,6 +4,7 @@ import dev.settle.common.InvalidRequestException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.CreateExpenseRequest.Participant;
 import dev.settle.group.Group;
+import dev.settle.group.GroupAccess;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
 import dev.settle.support.TestEntities;
@@ -56,13 +57,16 @@ class ExpenseServiceTest {
     @Mock
     private UserRepository users;
 
+    @Mock
+    private GroupAccess access;
+
     private ExpenseService service;
     private Group flat;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-09T12:00:00Z"), ZoneOffset.UTC);
-        service = new ExpenseService(groups, memberships, expenses, users, clock);
+        service = new ExpenseService(groups, memberships, expenses, users, access, clock);
 
         User ann = TestEntities.withId(new User("ann@example.com", "Ann"), ANN);
         flat = TestEntities.group("Flat", "PLN", ann);

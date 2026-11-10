@@ -1,0 +1,33 @@
+import { inject, LOCALE_ID, Pipe, PipeTransform } from '@angular/core';
+
+const DEFAULT_DIGITS = 2;
+
+export function minorUnitDigits(currency: string): number {
+  try {
+    return (
+      new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? DEFAULT_DIGITS
+    );
+  } catch {
+    return DEFAULT_DIGITS;
+  }
+}
+
+export function formatMoney(minor: number, currency: string, locale?: string): string {
+  const digits = minorUnitDigits(currency);
+  const value = minor / 10 ** digits;
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
+  } catch {
+    return `${value.toFixed(digits)} ${currency}`;
+  }
+}
+
+@Pipe({ name: 'money' })
+export class MoneyPipe implements PipeTransform {
+  private readonly locale = inject(LOCALE_ID);
+
+  transform(minor: number, currency: string): string {
+    return formatMoney(minor, currency, this.locale);
+  }
+}

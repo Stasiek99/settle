@@ -1,0 +1,43 @@
+.settlement {
+  &__title {
+    margin: 0 0 1rem;
+    font-size: 1.125rem;
+  }
+
+  p-fluid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  &__row {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  &__field {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  &__hint {
+    color: var(--p-red-500);
+  }
+
+  &__preview {
+    margin: 0;
+    color: var(--p-text-muted-color);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+
+    a {
+      text-decoration: none;
+    }
+  }
+}

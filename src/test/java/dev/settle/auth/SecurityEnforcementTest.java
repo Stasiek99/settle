@@ -77,6 +77,8 @@ class SecurityEnforcementTest {
             "GET,/groups/{id}/expenses",
             "POST,/groups/{id}/expenses",
             "GET,/groups/{id}/expenses/{id}",
+            "PUT,/groups/{id}/expenses/{id}",
+            "DELETE,/groups/{id}/expenses/{id}",
             "GET,/groups/{id}/balances",
             "GET,/groups/{id}/settlements",
             "POST,/groups/{id}/settlements",
