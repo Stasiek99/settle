@@ -1,5 +1,7 @@
 # Runs the packaged app next to the database from compose.yaml:
 #   docker compose -f compose.yaml -f compose.app.yaml up --build
+# Open http://localhost:8081: the web container serves the Angular app and forwards /api to the API, so
+# the browser talks to a single origin and the session cookies never cross sites.
 # Spring Boot's own Docker Compose support only reads compose.yaml, so this file
 # does not affect `./mvnw spring-boot:run`.
 services:
@@ -15,3 +17,11 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     ports:
       - '8080:8080'
+
+  web:
+    build: ./frontend
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - '8081:8080'

@@ -20,11 +20,13 @@ npm test          # unit tests (Vitest), watch mode
 npm run build     # production build into dist/frontend
 ```
 
+The production image (`Dockerfile`) serves the build with nginx behind a strict CSP. The build deliberately does not inline critical CSS, because that technique needs an inline event handler that `script-src 'self'` would block.
+
 ## How it is organised
 
 - `src/app/core`: API base URL, models, error messages, auth (token store, service, interceptor, guards) and API clients.
 - `src/app/features`: one folder per screen (`auth`, `groups`, `shell`), loaded lazily by the router.
-- The access token lives in `sessionStorage`, so it disappears when the tab closes. It is readable by scripts on the page, which is why the app avoids rendering untrusted HTML; the long-term fix is an httpOnly cookie, which needs a backend change.
+- The session lives in httpOnly cookies set by the API (a 15 minute access token and a 7 day refresh token, rotated on every use). Scripts on the page can never read them, so the app keeps no token in `localStorage`, `sessionStorage` or memory. The only cookie it can read is `XSRF-TOKEN`, which Angular sends back in the `X-XSRF-TOKEN` header on every write (double-submit CSRF protection). When a call fails with 401, the interceptor refreshes the session once and repeats the call.
 
 ## PrimeNG licensing
 

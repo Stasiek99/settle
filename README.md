@@ -44,6 +44,8 @@ The `Dockerfile` builds a small image (multi-stage, layered jar, non-root user, 
 docker compose -f compose.yaml -f compose.app.yaml up --build
 ```
 
+Then open <http://localhost:8081>. The `web` container (nginx) serves the Angular app and forwards `/api` to the API, so the browser talks to a single origin. It also sends a strict Content-Security-Policy.
+
 It reads the same `.env` as local development. Outside this compose file, pass `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` and `JWT_SECRET` as environment variables; none of them are baked into the image.
 
 ## Running the tests

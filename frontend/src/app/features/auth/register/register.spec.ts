@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
+import { setCsrfCookie } from '../../../testing/session';
 import { setValue, settle, submit, text } from '../../../testing/dom';
 import { Register } from './register';
 
@@ -12,7 +13,7 @@ describe('Register', () => {
   let navigateByUrl: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    sessionStorage.clear();
+    setCsrfCookie(true);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -25,7 +26,10 @@ describe('Register', () => {
     navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    setCsrfCookie(false);
+  });
 
   function render() {
     const fixture = TestBed.createComponent(Register);
@@ -82,9 +86,6 @@ describe('Register', () => {
     );
     http
       .expectOne('/api/auth/login')
-      .flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http
-      .expectOne('/api/users/me')
       .flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
     await settle(fixture);
 

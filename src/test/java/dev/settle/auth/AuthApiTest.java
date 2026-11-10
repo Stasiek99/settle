@@ -63,11 +63,11 @@ class AuthApiTest {
                         """.formatted(email, password)));
     }
 
-    private String loginForToken(String email, String password) throws Exception {
-        String body = login(email, password).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        Matcher matcher = TOKEN.matcher(body);
-        assertThat(matcher.find()).isTrue();
-        return matcher.group(1);
+    private String loginForAccessToken(String email, String password) throws Exception {
+        var cookie = login(email, password).andExpect(status().isOk())
+                .andReturn().getResponse().getCookie(SessionCookies.ACCESS);
+        assertThat(cookie).isNotNull();
+        return cookie.getValue();
     }
 
     @Test
@@ -125,16 +125,34 @@ class AuthApiTest {
     }
 
     @Test
-    void logsInAndReturnsABearerTokenForTheUser() throws Exception {
-        String userId = users.save(new User("ann@example.com", "Ann", passwordEncoder.encode("correct-horse")))
-                .getId().toString();
+    void logsInAndHandsTheSessionOverInHttpOnlyCookies() throws Exception {
+        User ann = users.save(new User("ann@example.com", "Ann", passwordEncoder.encode("correct-horse")));
 
-        String token = loginForToken("ann@example.com", "correct-horse");
+        var result = login("ann@example.com", "correct-horse")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ann.getId().toString()))
+                .andExpect(jsonPath("$.email").value("ann@example.com"))
+                .andReturn().getResponse();
 
-        assertThat(jwtDecoder.decode(token).getSubject()).isEqualTo(userId);
-        login("ann@example.com", "correct-horse")
-                .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(3600));
+        assertThat(jwtDecoder.decode(result.getCookie(SessionCookies.ACCESS).getValue()).getSubject())
+                .isEqualTo(ann.getId().toString());
+        assertThat(result.getHeaders(HttpHeaders.SET_COOKIE)).anySatisfy(header -> assertThat(header)
+                .startsWith(SessionCookies.ACCESS + "=")
+                .contains("HttpOnly", "Secure", "SameSite=Strict", "Path=/api", "Max-Age=900"));
+        assertThat(result.getHeaders(HttpHeaders.SET_COOKIE)).anySatisfy(header -> assertThat(header)
+                .startsWith(SessionCookies.REFRESH + "=")
+                .contains("HttpOnly", "Secure", "SameSite=Strict", "Path=/api/auth", "Max-Age=604800"));
+    }
+
+    @Test
+    void neverPutsATokenInTheResponseBody() throws Exception {
+        users.save(new User("ann@example.com", "Ann", passwordEncoder.encode("correct-horse")));
+
+        String body = login("ann@example.com", "correct-horse").andReturn().getResponse().getContentAsString();
+        String accessToken = login("ann@example.com", "correct-horse").andReturn().getResponse()
+                .getCookie(SessionCookies.ACCESS).getValue();
+
+        assertThat(body).doesNotContain("accessToken", "refreshToken", "tokenType", accessToken);
     }
 
     @Test
@@ -184,7 +202,7 @@ class AuthApiTest {
     @Test
     void aValidTokenIsAcceptedAndAForgedOneIsRefused() throws Exception {
         User ann = users.save(new User("ann@example.com", "Ann", passwordEncoder.encode("correct-horse")));
-        String token = loginForToken("ann@example.com", "correct-horse");
+        String token = loginForAccessToken("ann@example.com", "correct-horse");
 
         mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())

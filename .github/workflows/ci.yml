@@ -37,7 +37,35 @@ jobs:
       - name: Build and test
         run: ./mvnw -B -ntp verify
 
-  # Builds the image and boots it next to Postgres, so a broken Dockerfile or a
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Check formatting
+        run: npx prettier --check src
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npx ng test --watch=false
+
+  # Builds both images and boots them next to Postgres, so a broken Dockerfile or a
   # missing runtime setting is caught here and not on the first deploy.
   docker:
     runs-on: ubuntu-latest
@@ -54,6 +82,16 @@ jobs:
 
       - name: Check the health endpoint
         run: curl --fail --silent http://localhost:8080/actuator/health
+
+      - name: Check that the web container serves the app and forwards the API
+        run: |
+          curl --fail --silent http://localhost:8081/healthz
+          curl --fail --silent http://localhost:8081/ | grep -q '<app-root'
+          curl --fail --silent http://localhost:8081/api/actuator/health
+
+      - name: Check the security headers of the web container
+        run: |
+          curl --silent --head http://localhost:8081/ | grep -i "^content-security-policy: default-src 'self'; script-src 'self'"
 
       - name: Show container logs on failure
         if: failure()

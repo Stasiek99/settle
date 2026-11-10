@@ -17,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.UUID;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,7 +33,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    private static final TokenResponse TOKEN = new TokenResponse("jwt", "Bearer", 3600);
+    private static final TokenResponse TOKEN = new TokenResponse("jwt", "Bearer", 900);
+    private static final RefreshTokenService.Issued REFRESH =
+            new RefreshTokenService.Issued("r".repeat(43), Instant.parse("2026-11-17T10:00:00Z"));
 
     @Mock
     private UserRepository users;
@@ -39,13 +43,16 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private RefreshTokenService refreshTokens;
+
     private PasswordEncoder encoder;
     private AuthService service;
 
     @BeforeEach
     void setUp() {
         encoder = spy(new BCryptPasswordEncoder(4));
-        service = new AuthService(users, encoder, jwtService);
+        service = new AuthService(users, encoder, jwtService, refreshTokens);
     }
 
     private User annWithPassword(String password) {
@@ -94,8 +101,13 @@ class AuthServiceTest {
         User ann = annWithPassword("correct-horse");
         when(users.findByEmail("ann@example.com")).thenReturn(Optional.of(ann));
         when(jwtService.issueFor(ann)).thenReturn(TOKEN);
+        when(refreshTokens.startSession(ann.getId())).thenReturn(REFRESH);
 
-        assertThat(service.login(new LoginRequest("ann@example.com", "correct-horse"))).isEqualTo(TOKEN);
+        AuthService.Session session = service.login(new LoginRequest("ann@example.com", "correct-horse"));
+
+        assertThat(session.access()).isEqualTo(TOKEN);
+        assertThat(session.refresh()).isEqualTo(REFRESH);
+        assertThat(session.user().email()).isEqualTo("ann@example.com");
     }
 
     @Test
@@ -103,8 +115,9 @@ class AuthServiceTest {
         User ann = annWithPassword("correct-horse");
         when(users.findByEmail("ann@example.com")).thenReturn(Optional.of(ann));
         when(jwtService.issueFor(ann)).thenReturn(TOKEN);
+        when(refreshTokens.startSession(ann.getId())).thenReturn(REFRESH);
 
-        assertThat(service.login(new LoginRequest("  ANN@Example.com ", "correct-horse"))).isEqualTo(TOKEN);
+        assertThat(service.login(new LoginRequest("  ANN@Example.com ", "correct-horse")).access()).isEqualTo(TOKEN);
     }
 
     @Test
@@ -115,7 +128,7 @@ class AuthServiceTest {
         assertThatThrownBy(() -> service.login(new LoginRequest("ann@example.com", "wrong-password")))
                 .isInstanceOf(AuthenticationFailedException.class);
 
-        verifyNoInteractions(jwtService);
+        verifyNoInteractions(jwtService, refreshTokens);
     }
 
     @Test
@@ -148,5 +161,44 @@ class AuthServiceTest {
                 .isInstanceOf(AuthenticationFailedException.class);
 
         verifyNoInteractions(users, jwtService);
+    }
+
+    @Test
+    void refreshRotatesTheTokenAndIssuesAFreshAccessToken() {
+        User ann = annWithPassword("correct-horse");
+        when(refreshTokens.rotate("old-token")).thenReturn(new RefreshTokenService.Rotation(ann.getId(), REFRESH));
+        when(users.findById(ann.getId())).thenReturn(Optional.of(ann));
+        when(jwtService.issueFor(ann)).thenReturn(TOKEN);
+
+        AuthService.Session session = service.refresh("old-token");
+
+        assertThat(session.access()).isEqualTo(TOKEN);
+        assertThat(session.refresh()).isEqualTo(REFRESH);
+        assertThat(session.user().id()).isEqualTo(ann.getId());
+    }
+
+    @Test
+    void refreshFailsWhenTheTokenIsRejected() {
+        when(refreshTokens.rotate("bad")).thenThrow(new AuthenticationFailedException("The session has ended."));
+
+        assertThatThrownBy(() -> service.refresh("bad")).isInstanceOf(AuthenticationFailedException.class);
+
+        verifyNoInteractions(jwtService);
+    }
+
+    @Test
+    void refreshFailsWhenTheUserNoLongerExists() {
+        UUID gone = UUID.randomUUID();
+        when(refreshTokens.rotate("old-token")).thenReturn(new RefreshTokenService.Rotation(gone, REFRESH));
+        when(users.findById(gone)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.refresh("old-token")).isInstanceOf(AuthenticationFailedException.class);
+    }
+
+    @Test
+    void logoutRevokesTheSession() {
+        service.logout("some-token");
+
+        verify(refreshTokens).revoke("some-token");
     }
 }

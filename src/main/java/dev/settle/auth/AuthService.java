@@ -26,12 +26,15 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokens;
     private final String unknownUserHash;
 
-    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       RefreshTokenService refreshTokens) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokens = refreshTokens;
         this.unknownUserHash = passwordEncoder.encode("password-for-users-that-do-not-exist");
     }
 
@@ -49,7 +52,11 @@ public class AuthService {
         return UserResponse.from(saved);
     }
 
-    public TokenResponse login(LoginRequest request) {
+    record Session(UserResponse user, TokenResponse access, RefreshTokenService.Issued refresh) {
+    }
+
+    @Transactional
+    public Session login(LoginRequest request) {
         if (exceedsBcryptLimit(request.password())) {
             log.warn("Login rejected: password over the length limit");
             throw new AuthenticationFailedException();
@@ -64,7 +71,20 @@ public class AuthService {
             throw new AuthenticationFailedException();
         }
         log.atInfo().addKeyValue("user.id", user.get().getId()).log("User logged in");
-        return jwtService.issueFor(user.get());
+        return new Session(UserResponse.from(user.get()), jwtService.issueFor(user.get()),
+                refreshTokens.startSession(user.get().getId()));
+    }
+
+    @Transactional(noRollbackFor = AuthenticationFailedException.class)
+    public Session refresh(String refreshToken) {
+        RefreshTokenService.Rotation rotation = refreshTokens.rotate(refreshToken);
+        User user = users.findById(rotation.userId()).orElseThrow(AuthenticationFailedException::new);
+        return new Session(UserResponse.from(user), jwtService.issueFor(user), rotation.next());
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokens.revoke(refreshToken);
     }
 
     private static boolean exceedsBcryptLimit(String password) {

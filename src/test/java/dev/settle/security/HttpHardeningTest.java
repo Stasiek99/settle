@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -85,14 +88,17 @@ class HttpHardeningTest {
     }
 
     @Test
-    void noCookieIsEverIssuedBecauseCsrfProtectionIsOffForAStatelessApi() throws Exception {
-        mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"ann@example.com\",\"password\":\"%s\"}".formatted(PASSWORD)))
-                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
-        mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, bearer))
-                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
-        mvc.perform(get("/users/me"))
-                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    void onlyTheDocumentedCookiesAreEverIssuedAndNeverAServerSession() throws Exception {
+        var responses = List.of(
+                mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ann@example.com\",\"password\":\"%s\"}".formatted(PASSWORD))),
+                mvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, bearer)),
+                mvc.perform(get("/users/me")));
+
+        for (var response : responses) {
+            assertThat(response.andReturn().getResponse().getHeaders(HttpHeaders.SET_COOKIE))
+                    .allSatisfy(cookie -> assertThat(cookie).matches("^(XSRF-TOKEN|settle_access|settle_refresh)=.*"));
+        }
     }
 
     @Test
