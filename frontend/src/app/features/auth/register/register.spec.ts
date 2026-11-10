@@ -14,7 +14,12 @@ describe('Register', () => {
   beforeEach(() => {
     sessionStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), providePrimeNG()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        providePrimeNG(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -28,7 +33,12 @@ describe('Register', () => {
     return fixture;
   }
 
-  function fill(fixture: ReturnType<typeof render>, name: string, email: string, password: string): void {
+  function fill(
+    fixture: ReturnType<typeof render>,
+    name: string,
+    email: string,
+    password: string,
+  ): void {
     setValue(fixture, '#displayName', name);
     setValue(fixture, '#email', email);
     setValue(fixture, '#password', password);
@@ -66,9 +76,16 @@ describe('Register', () => {
       email: 'ann@example.com',
       password: 'a-long-password',
     });
-    register.flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' }, { status: 201, statusText: 'Created' });
-    http.expectOne('/api/auth/login').flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
+    register.flush(
+      { id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' },
+      { status: 201, statusText: 'Created' },
+    );
+    http
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
     await settle(fixture);
 
     expect(navigateByUrl).toHaveBeenCalledWith('/groups');
@@ -81,7 +98,10 @@ describe('Register', () => {
     submit(fixture);
     http
       .expectOne('/api/auth/register')
-      .flush({ detail: 'A user with this email already exists' }, { status: 409, statusText: 'Conflict' });
+      .flush(
+        { detail: 'A user with this email already exists' },
+        { status: 409, statusText: 'Conflict' },
+      );
     await settle(fixture);
 
     expect(text(fixture)).toContain('A user with this email already exists');

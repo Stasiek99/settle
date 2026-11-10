@@ -48,12 +48,14 @@ export class Register {
     this.submitting.set(true);
     this.error.set(null);
     const { displayName, email, password } = this.form.getRawValue();
-    this.auth.register({ displayName: displayName.trim(), email: email.trim(), password }).subscribe({
-      next: () => void this.router.navigateByUrl('/groups'),
-      error: (err: unknown) => {
-        this.error.set(problemMessage(err));
-        this.submitting.set(false);
-      },
-    });
+    this.auth
+      .register({ displayName: displayName.trim(), email: email.trim(), password })
+      .subscribe({
+        next: () => void this.router.navigateByUrl('/groups'),
+        error: (err: unknown) => {
+          this.error.set(problemMessage(err));
+          this.submitting.set(false);
+        },
+      });
   }
 }

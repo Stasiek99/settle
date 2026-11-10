@@ -22,7 +22,9 @@ describe('problemMessage', () => {
       ],
     });
 
-    expect(problemMessage(error)).toBe('name: must not be blank; currency: must be a 3-letter currency code');
+    expect(problemMessage(error)).toBe(
+      'name: must not be blank; currency: must be a 3-letter currency code',
+    );
   });
 
   it('explains a network failure', () => {
@@ -30,9 +32,9 @@ describe('problemMessage', () => {
   });
 
   it('does not expose a server error body', () => {
-    expect(problemMessage(failure(500, { detail: 'java.lang.NullPointerException at ...' }))).toContain(
-      'server had a problem',
-    );
+    expect(
+      problemMessage(failure(500, { detail: 'java.lang.NullPointerException at ...' })),
+    ).toContain('server had a problem');
   });
 
   it('falls back to a generic message', () => {

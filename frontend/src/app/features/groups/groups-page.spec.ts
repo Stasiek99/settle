@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { providePrimeNG } from 'primeng/config';
 
 import { Group, Page } from '../../core/models';
@@ -8,7 +12,14 @@ import { click, query, setValue, settle, submit, text } from '../../testing/dom'
 import { GroupsPage } from './groups-page';
 
 function group(name: string, currency = 'PLN'): Group {
-  return { id: `id-${name}`, name, currency, createdBy: 'u1', createdAt: '2026-11-10T10:00:00Z', version: 0 };
+  return {
+    id: `id-${name}`,
+    name,
+    currency,
+    createdBy: 'u1',
+    createdAt: '2026-11-10T10:00:00Z',
+    version: 0,
+  };
 }
 
 function page(content: Group[], overrides: Partial<Page<Group>> = {}): Page<Group> {
@@ -36,7 +47,10 @@ describe('GroupsPage', () => {
 
   function expectList(pageNumber = 0): TestRequest {
     return http.expectOne(
-      (r) => r.url === '/api/groups' && r.method === 'GET' && r.params.get('page') === String(pageNumber),
+      (r) =>
+        r.url === '/api/groups' &&
+        r.method === 'GET' &&
+        r.params.get('page') === String(pageNumber),
     );
   }
 
@@ -144,10 +158,13 @@ describe('GroupsPage', () => {
     submit(fixture, 'p-dialog form');
     http
       .expectOne((r) => r.method === 'POST')
-      .flush({ detail: 'Validation failed', errors: [{ field: 'name', message: 'must not be blank' }] }, {
-        status: 400,
-        statusText: 'Bad Request',
-      });
+      .flush(
+        { detail: 'Validation failed', errors: [{ field: 'name', message: 'must not be blank' }] },
+        {
+          status: 400,
+          statusText: 'Bad Request',
+        },
+      );
     await settle(fixture);
 
     expect(text(fixture)).toContain('name: must not be blank');

@@ -15,7 +15,9 @@
     </div>
   } @else if (groups().length === 0) {
     <p-card>
-      <p class="groups__empty">You are not in any group yet. Create one to start splitting expenses.</p>
+      <p class="groups__empty">
+        You are not in any group yet. Create one to start splitting expenses.
+      </p>
     </p-card>
   } @else {
     <ul class="groups__list">
@@ -55,7 +57,13 @@
     <p-fluid>
       <div class="groups__field">
         <label for="group-name">Name</label>
-        <input pInputText id="group-name" formControlName="name" maxlength="100" autocomplete="off" />
+        <input
+          pInputText
+          id="group-name"
+          formControlName="name"
+          maxlength="100"
+          autocomplete="off"
+        />
         @if (form.controls.name.touched && form.controls.name.hasError('required')) {
           <small class="groups__hint" role="alert">Name is required.</small>
         }
@@ -63,7 +71,12 @@
 
       <div class="groups__field">
         <label [attr.for]="'group-currency'">Currency</label>
-        <p-select inputId="group-currency" formControlName="currency" [options]="currencies" appendTo="body" />
+        <p-select
+          inputId="group-currency"
+          formControlName="currency"
+          [options]="currencies"
+          appendTo="body"
+        />
       </div>
 
       @if (createError(); as message) {

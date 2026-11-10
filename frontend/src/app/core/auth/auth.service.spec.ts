@@ -20,7 +20,11 @@ describe('AuthService', () => {
   function create(): AuthService {
     navigate = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: Router, useValue: { navigate } }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Router, useValue: { navigate } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     return TestBed.inject(AuthService);
@@ -57,7 +61,9 @@ describe('AuthService', () => {
   it('keeps the session across a reload through sessionStorage', () => {
     const first = create();
     first.login('ann@example.com', 'x').subscribe();
-    http.expectOne('/api/auth/login').flush({ accessToken: 'jwt-1', tokenType: 'Bearer', expiresIn: 3600 });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'jwt-1', tokenType: 'Bearer', expiresIn: 3600 });
     http.expectOne('/api/users/me').flush(USER);
 
     TestBed.resetTestingModule();
@@ -83,7 +89,9 @@ describe('AuthService', () => {
   it('register creates the account and then signs in with the same credentials', () => {
     const auth = create();
 
-    auth.register({ email: 'ann@example.com', displayName: 'Ann', password: 'a-long-password' }).subscribe();
+    auth
+      .register({ email: 'ann@example.com', displayName: 'Ann', password: 'a-long-password' })
+      .subscribe();
 
     const register = http.expectOne('/api/auth/register');
     expect(register.request.body).toEqual({
@@ -103,10 +111,14 @@ describe('AuthService', () => {
   it('register does not sign in when the account cannot be created', () => {
     const auth = create();
 
-    auth.register({ email: 'ann@example.com', displayName: 'Ann', password: 'a-long-password' }).subscribe({
-      error: () => undefined,
-    });
-    http.expectOne('/api/auth/register').flush({ detail: 'exists' }, { status: 409, statusText: 'Conflict' });
+    auth
+      .register({ email: 'ann@example.com', displayName: 'Ann', password: 'a-long-password' })
+      .subscribe({
+        error: () => undefined,
+      });
+    http
+      .expectOne('/api/auth/register')
+      .flush({ detail: 'exists' }, { status: 409, statusText: 'Conflict' });
 
     http.expectNone('/api/auth/login');
     expect(auth.isAuthenticated()).toBe(false);
@@ -115,7 +127,9 @@ describe('AuthService', () => {
   it('logout clears the session and goes to the login page', () => {
     const auth = create();
     auth.login('ann@example.com', 'x').subscribe();
-    http.expectOne('/api/auth/login').flush({ accessToken: 'jwt-1', tokenType: 'Bearer', expiresIn: 3600 });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'jwt-1', tokenType: 'Bearer', expiresIn: 3600 });
     http.expectOne('/api/users/me').flush(USER);
 
     auth.logout();

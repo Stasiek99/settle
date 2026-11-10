@@ -14,7 +14,12 @@ describe('Shell', () => {
   beforeEach(() => {
     sessionStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), providePrimeNG()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        providePrimeNG(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -26,7 +31,9 @@ describe('Shell', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
 
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
     await settle(fixture);
 
     expect(text(fixture)).toContain('Ann');
@@ -35,8 +42,12 @@ describe('Shell', () => {
   it('does not reload a user that is already known', () => {
     const auth = TestBed.inject(AuthService);
     auth.login('ann@example.com', 'x').subscribe();
-    http.expectOne('/api/auth/login').flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
 
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
@@ -47,7 +58,9 @@ describe('Shell', () => {
   it('logs out and returns to the login page', async () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'ann@example.com', displayName: 'Ann', createdAt: '' });
     await settle(fixture);
 
     click(fixture, 'p-button[label="Log out"] button');

@@ -51,7 +51,9 @@ describe('authInterceptor', () => {
     client.get('https://example.com/api/groups').subscribe();
     client.get('/assets/logo.svg').subscribe();
 
-    expect(http.expectOne('https://example.com/api/groups').request.headers.has('Authorization')).toBe(false);
+    expect(
+      http.expectOne('https://example.com/api/groups').request.headers.has('Authorization'),
+    ).toBe(false);
     expect(http.expectOne('/assets/logo.svg').request.headers.has('Authorization')).toBe(false);
   });
 
@@ -72,7 +74,9 @@ describe('authInterceptor', () => {
 
     expect(failed).toBe(true);
     expect(auth.endSession).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/groups?x=1' } });
+    expect(navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { returnUrl: '/groups?x=1' },
+    });
   });
 
   it('leaves the session alone on other errors', () => {

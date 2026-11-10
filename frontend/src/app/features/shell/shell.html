@@ -7,7 +7,13 @@
       @if (auth.user(); as user) {
         <span class="shell__name">{{ user.displayName }}</span>
       }
-      <p-button label="Log out" icon="pi pi-sign-out" severity="secondary" [text]="true" (onClick)="logout()" />
+      <p-button
+        label="Log out"
+        icon="pi pi-sign-out"
+        severity="secondary"
+        [text]="true"
+        (onClick)="logout()"
+      />
     </div>
   </ng-template>
 </p-toolbar>

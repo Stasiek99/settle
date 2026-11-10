@@ -1,10 +1,17 @@
 import { ComponentFixture } from '@angular/core/testing';
 
-export function query<T extends HTMLElement>(fixture: ComponentFixture<unknown>, selector: string): T | null {
+export function query<T extends HTMLElement>(
+  fixture: ComponentFixture<unknown>,
+  selector: string,
+): T | null {
   return (fixture.nativeElement as HTMLElement).querySelector<T>(selector);
 }
 
-export function setValue(fixture: ComponentFixture<unknown>, selector: string, value: string): void {
+export function setValue(
+  fixture: ComponentFixture<unknown>,
+  selector: string,
+  value: string,
+): void {
   const input = query<HTMLInputElement>(fixture, selector);
   if (!input) {
     throw new Error(`No element matches ${selector}`);

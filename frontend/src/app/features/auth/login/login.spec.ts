@@ -14,7 +14,12 @@ describe('Login', () => {
   beforeEach(() => {
     sessionStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), providePrimeNG()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        providePrimeNG(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -37,8 +42,12 @@ describe('Login', () => {
   }
 
   function succeedLogin(): void {
-    http.expectOne('/api/auth/login').flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
   }
 
   it('does not call the API and shows hints while the form is empty', async () => {
@@ -72,7 +81,9 @@ describe('Login', () => {
     const request = http.expectOne('/api/auth/login');
     expect(request.request.body).toEqual({ email: 'ann@example.com', password: ' pass word ' });
     request.flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http.expectOne('/api/users/me').flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
+    http
+      .expectOne('/api/users/me')
+      .flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
   });
 
   it('returns to the page the user wanted', async () => {
