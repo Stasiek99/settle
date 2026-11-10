@@ -1,6 +1,8 @@
 package dev.settle.group;
 
 import dev.settle.common.ConflictException;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.support.TestEntities;
 import dev.settle.user.User;
@@ -12,7 +14,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -80,25 +86,27 @@ class GroupServiceTest {
     }
 
     @Test
-    void listForReturnsOnlyTheGroupsOfTheGivenUserNewestFirst() {
-        Group older = TestEntities.group("Older", "PLN", ann);
-        ReflectionTestUtils.setField(older, "createdAt", java.time.Instant.parse("2026-01-01T00:00:00Z"));
+    void listForMapsTheRequestedPageOfMemberships() {
         Group newer = TestEntities.group("Newer", "PLN", ann);
-        ReflectionTestUtils.setField(newer, "createdAt", java.time.Instant.parse("2026-06-01T00:00:00Z"));
-        when(memberships.findAllByUserId(ann.getId())).thenReturn(List.of(
-                new Membership(older, ann, MembershipRole.OWNER),
-                new Membership(newer, ann, MembershipRole.MEMBER)));
+        Group older = TestEntities.group("Older", "PLN", ann);
+        when(memberships.findByUserId(eq(ann.getId()), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(
+                new Membership(newer, ann, MembershipRole.OWNER),
+                new Membership(older, ann, MembershipRole.MEMBER)), PageRequest.of(1, 2), 5));
 
-        List<GroupResponse> result = service.listFor(ann.getId());
+        PageResponse<GroupResponse> result = service.listFor(ann.getId(), new PageQuery(1, 2));
 
-        assertThat(result).extracting(GroupResponse::name).containsExactly("Newer", "Older");
+        assertThat(result.content()).extracting(GroupResponse::name).containsExactly("Newer", "Older");
+        assertThat(result.page()).isEqualTo(1);
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.totalElements()).isEqualTo(5);
+        assertThat(result.totalPages()).isEqualTo(3);
     }
 
     @Test
     void listForIsEmptyForSomeoneWithoutGroups() {
-        when(memberships.findAllByUserId(bob.getId())).thenReturn(List.of());
+        when(memberships.findByUserId(eq(bob.getId()), any(Pageable.class))).thenReturn(Page.empty());
 
-        assertThat(service.listFor(bob.getId())).isEmpty();
+        assertThat(service.listFor(bob.getId(), new PageQuery(null, null)).content()).isEmpty();
     }
 
     @Test

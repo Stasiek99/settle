@@ -2,12 +2,15 @@ package dev.settle.settlement;
 
 import dev.settle.common.Currencies;
 import dev.settle.common.InvalidRequestException;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.Money;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
 import dev.settle.user.UserRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,9 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class SettlementService {
+
+    private static final Sort NEWEST_FIRST =
+            Sort.by(Sort.Order.desc("settledOn"), Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
 
     private final GroupRepository groups;
     private final MembershipRepository memberships;
@@ -65,13 +71,12 @@ public class SettlementService {
         return SettlementResponse.from(settlement);
     }
 
-    public List<SettlementResponse> list(UUID groupId) {
+    public PageResponse<SettlementResponse> list(UUID groupId, PageQuery query) {
         if (!groups.existsById(groupId)) {
             throw new ResourceNotFoundException("Group", groupId);
         }
-        return settlements.findAllByGroupIdOrderBySettledOnDescCreatedAtDesc(groupId).stream()
-                .map(SettlementResponse::from)
-                .toList();
+        return PageResponse.of(
+                settlements.findByGroupId(groupId, query.toPageable(NEWEST_FIRST)), SettlementResponse::from);
     }
 
     public SettlementResponse get(UUID groupId, UUID settlementId) {

@@ -1,5 +1,7 @@
 package dev.settle.group;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +18,9 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     @EntityGraph(attributePaths = "group")
     List<Membership> findAllByUserId(UUID userId);
+
+    @EntityGraph(attributePaths = "group")
+    Page<Membership> findByUserId(UUID userId, Pageable pageable);
 
     boolean existsByGroupIdAndUserId(UUID groupId, UUID userId);
 

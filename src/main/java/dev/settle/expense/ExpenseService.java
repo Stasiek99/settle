@@ -2,12 +2,15 @@ package dev.settle.expense;
 
 import dev.settle.common.Currencies;
 import dev.settle.common.InvalidRequestException;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.CreateExpenseRequest.Participant;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
 import dev.settle.user.UserRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,9 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class ExpenseService {
+
+    private static final Sort NEWEST_FIRST =
+            Sort.by(Sort.Order.desc("expenseDate"), Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
 
     private final GroupRepository groups;
     private final MembershipRepository memberships;
@@ -76,13 +82,11 @@ public class ExpenseService {
         return ExpenseResponse.from(expense);
     }
 
-    public List<ExpenseResponse> list(UUID groupId) {
+    public PageResponse<ExpenseResponse> list(UUID groupId, PageQuery query) {
         if (!groups.existsById(groupId)) {
             throw new ResourceNotFoundException("Group", groupId);
         }
-        return expenses.findAllByGroupIdOrderByExpenseDateDescCreatedAtDesc(groupId).stream()
-                .map(ExpenseResponse::from)
-                .toList();
+        return PageResponse.of(expenses.findByGroupId(groupId, query.toPageable(NEWEST_FIRST)), ExpenseResponse::from);
     }
 
     public ExpenseResponse get(UUID groupId, UUID expenseId) {

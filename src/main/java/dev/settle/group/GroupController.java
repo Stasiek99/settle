@@ -1,7 +1,10 @@
 package dev.settle.group;
 
 import dev.settle.auth.CurrentUser;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,8 +38,8 @@ public class GroupController {
     }
 
     @GetMapping
-    public List<GroupResponse> list(CurrentUser user) {
-        return service.listFor(user.id());
+    public PageResponse<GroupResponse> list(CurrentUser user, @Valid @ParameterObject PageQuery page) {
+        return service.listFor(user.id(), page);
     }
 
     @GetMapping("/{groupId}")

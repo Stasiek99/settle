@@ -1,19 +1,24 @@
 package dev.settle.group;
 
 import dev.settle.common.ConflictException;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.user.User;
 import dev.settle.user.UserRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class GroupService {
+
+    private static final Sort NEWEST_FIRST =
+            Sort.by(Sort.Order.desc("group.createdAt"), Sort.Order.asc("group.id"));
 
     private final GroupRepository groups;
     private final MembershipRepository memberships;
@@ -33,13 +38,10 @@ public class GroupService {
         return GroupResponse.from(group);
     }
 
-    public List<GroupResponse> listFor(UUID userId) {
-        return memberships.findAllByUserId(userId).stream()
-                .map(Membership::getGroup)
-                .map(GroupResponse::from)
-                .sorted(Comparator.comparing(GroupResponse::createdAt).reversed()
-                        .thenComparing(GroupResponse::id))
-                .toList();
+    public PageResponse<GroupResponse> listFor(UUID userId, PageQuery query) {
+        return PageResponse.of(
+                memberships.findByUserId(userId, query.toPageable(NEWEST_FIRST)),
+                membership -> GroupResponse.from(membership.getGroup()));
     }
 
     public GroupResponse get(UUID groupId) {

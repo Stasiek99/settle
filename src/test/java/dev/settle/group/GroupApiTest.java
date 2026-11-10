@@ -6,6 +6,8 @@ import dev.settle.user.User;
 import dev.settle.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -125,21 +127,58 @@ class GroupApiTest {
         TestAuth.authenticateAs(ann.getId());
         mvc.perform(get("/groups"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("Second"))
-                .andExpect(jsonPath("$[1].name").value("First"));
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("Second"))
+                .andExpect(jsonPath("$.content[1].name").value("First"));
 
         TestAuth.authenticateAs(bob.getId());
         mvc.perform(get("/groups"))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name").value("Bobs"));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Bobs"));
     }
 
     @Test
-    void aUserWithoutGroupsGetsAnEmptyList() throws Exception {
+    void aUserWithoutGroupsGetsAnEmptyPage() throws Exception {
         mvc.perform(get("/groups"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void pagesThroughGroupsWithoutRepeatsOrGaps() throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            createGroup("Group " + i);
+        }
+
+        mvc.perform(get("/groups").param("size", "2"))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.content[0].name").value("Group 5"))
+                .andExpect(jsonPath("$.content[1].name").value("Group 4"));
+        mvc.perform(get("/groups").param("size", "2").param("page", "2"))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Group 1"));
+        mvc.perform(get("/groups").param("size", "2").param("page", "9"))
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
+    void usesDefaultPageSizeWhenNoneIsGiven() throws Exception {
+        mvc.perform(get("/groups"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20));
+    }
+
+    @ParameterizedTest(name = "page={0} size={1} is rejected")
+    @CsvSource({"-1,10", "0,0", "0,101", "0,-5", "abc,10", "0,abc"})
+    void rejectsInvalidPagingParameters(String page, String size) throws Exception {
+        mvc.perform(get("/groups").param("page", page).param("size", size))
+                .andExpect(status().isBadRequest());
     }
 
     private UUID createGroup(String name) throws Exception {
