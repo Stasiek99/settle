@@ -38,6 +38,14 @@ export const routes: Routes = [
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'expenses' },
           {
+            path: 'expenses/new',
+            loadComponent: () =>
+              import('./features/group/expense-form/expense-form-page').then(
+                (m) => m.ExpenseFormPage,
+              ),
+            title: 'New expense · Settle',
+          },
+          {
             path: 'expenses',
             loadComponent: () =>
               import('./features/group/expenses/expenses-page').then((m) => m.ExpensesPage),

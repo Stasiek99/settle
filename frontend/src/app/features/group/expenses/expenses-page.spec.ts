@@ -5,6 +5,7 @@ import {
   TestRequest,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
 import { Expense, Page } from '../../../core/models';
@@ -46,6 +47,7 @@ describe('ExpensesPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         providePrimeNG(),
+        provideRouter([]),
         {
           provide: GroupStore,
           useValue: { groupId: () => 'g1', nameOf: (id: string) => NAMES[id] ?? 'Unknown member' },
@@ -70,6 +72,13 @@ describe('ExpensesPage', () => {
     await settle(fixture);
     return fixture;
   }
+
+  it('offers a link to add an expense', async () => {
+    const fixture = await render();
+
+    const link = query<HTMLAnchorElement>(fixture, 'a[href="/new"]');
+    expect(link?.textContent).toContain('Add expense');
+  });
 
   it('shows placeholders while loading', () => {
     const fixture = TestBed.createComponent(ExpensesPage);

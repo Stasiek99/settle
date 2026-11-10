@@ -1,0 +1,90 @@
+.expense {
+  &__title {
+    margin: 0 0 1rem;
+    font-size: 1.125rem;
+  }
+
+  p-fluid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  &__row {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  &__field {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  &__label {
+    font-weight: 500;
+  }
+
+  &__hint {
+    color: var(--p-red-500);
+  }
+
+  &__people {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.75rem 1rem 1rem;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: var(--p-content-border-radius);
+
+    legend {
+      padding: 0 0.5rem;
+      font-weight: 500;
+    }
+  }
+
+  &__list {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  &__person {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.5rem;
+  }
+
+  &__name {
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+
+  &__share {
+    width: 10rem;
+    max-width: 45%;
+  }
+
+  &__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--p-text-muted-color);
+
+    &--bad {
+      color: var(--p-red-500);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+
+    a {
+      text-decoration: none;
+    }
+  }
+}

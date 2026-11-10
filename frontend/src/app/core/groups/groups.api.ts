@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../api.config';
 import {
+  CreateExpenseRequest,
   Expense,
   Group,
   GroupBalances,
@@ -38,6 +39,10 @@ export class GroupsApi {
   expenses(groupId: string, page: number, size: number): Observable<Page<Expense>> {
     const params = new HttpParams().set('page', page).set('size', size);
     return this.http.get<Page<Expense>>(`${this.baseUrl}/groups/${groupId}/expenses`, { params });
+  }
+
+  createExpense(groupId: string, request: CreateExpenseRequest): Observable<Expense> {
+    return this.http.post<Expense>(`${this.baseUrl}/groups/${groupId}/expenses`, request);
   }
 
   balances(groupId: string): Observable<GroupBalances> {

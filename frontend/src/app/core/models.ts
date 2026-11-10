@@ -96,3 +96,19 @@ export interface SettlementSuggestions {
   currency: string;
   transfers: SuggestedTransfer[];
 }
+
+export interface ParticipantRequest {
+  userId: string;
+  basisPoints?: number;
+  amount?: number;
+}
+
+export interface CreateExpenseRequest {
+  description: string;
+  amount: number;
+  currency: string;
+  paidBy: string;
+  splitType: SplitType;
+  expenseDate?: string;
+  participants: ParticipantRequest[];
+}

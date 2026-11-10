@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
@@ -23,6 +24,7 @@ const SPLIT_LABELS: Record<SplitType, string> = {
   selector: 'app-expenses-page',
   imports: [
     DatePipe,
+    RouterLink,
     ButtonModule,
     CardModule,
     MessageModule,

@@ -1,3 +1,7 @@
+<div class="section__toolbar">
+  <a pButton routerLink="new" label="Add expense" icon="pi pi-plus"></a>
+</div>
+
 @if (pager.error(); as message) {
   <p-message severity="error" role="alert">{{ message }}</p-message>
   <p-button label="Try again" icon="pi pi-refresh" severity="secondary" (onClick)="pager.load(0)" />
