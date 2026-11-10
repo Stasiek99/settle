@@ -245,7 +245,8 @@ class GroupAuthorizationTest {
 
         mvc.perform(get("/groups"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

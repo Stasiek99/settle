@@ -1,6 +1,9 @@
 package dev.settle.expense;
 
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -33,8 +35,8 @@ public class ExpenseController {
     }
 
     @GetMapping
-    public List<ExpenseResponse> list(@PathVariable UUID groupId) {
-        return service.list(groupId);
+    public PageResponse<ExpenseResponse> list(@PathVariable UUID groupId, @Valid @ParameterObject PageQuery page) {
+        return service.list(groupId, page);
     }
 
     @GetMapping("/{expenseId}")

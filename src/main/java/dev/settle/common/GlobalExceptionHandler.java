@@ -3,6 +3,7 @@ package dev.settle.common;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -44,6 +45,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     ProblemDetail handleConflict(ConflictException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler({PreconditionFailedException.class, ObjectOptimisticLockingFailureException.class})
+    ProblemDetail handlePreconditionFailed(Exception ex) {
+        if (ex instanceof ObjectOptimisticLockingFailureException) {
+            log.info("Optimistic lock conflict: {}", ex.getMessage());
+        }
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.PRECONDITION_FAILED, "The resource was modified by someone else; reload it and retry");
+    }
+
+    @ExceptionHandler(PreconditionRequiredException.class)
+    ProblemDetail handlePreconditionRequired(PreconditionRequiredException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_REQUIRED, ex.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

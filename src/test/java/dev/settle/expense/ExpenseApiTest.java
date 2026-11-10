@@ -157,9 +157,33 @@ class ExpenseApiTest {
 
         mvc.perform(get("/groups/{id}/expenses", group.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].description").value("newer"))
-                .andExpect(jsonPath("$[1].description").value("older"));
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].description").value("newer"))
+                .andExpect(jsonPath("$.content[1].description").value("older"));
+    }
+
+    @Test
+    void pagesThroughExpensesWithTheirSplits() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            postExpense(group.getId(), equalExpense("expense " + i, 1000, id(0), id(0), id(1)))
+                    .andExpect(status().isCreated());
+        }
+
+        mvc.perform(get("/groups/{id}/expenses", group.getId()).param("size", "2"))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content[0].description").value("expense 3"))
+                .andExpect(jsonPath("$.content[0].splits.length()").value(2));
+        mvc.perform(get("/groups/{id}/expenses", group.getId()).param("size", "2").param("page", "1"))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].description").value("expense 1"));
+    }
+
+    @Test
+    void rejectsOversizedPageOnExpenses() throws Exception {
+        mvc.perform(get("/groups/{id}/expenses", group.getId()).param("size", "101"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

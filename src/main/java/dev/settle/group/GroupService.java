@@ -1,19 +1,29 @@
 package dev.settle.group;
 
 import dev.settle.common.ConflictException;
+import dev.settle.common.PageQuery;
+import dev.settle.common.PageResponse;
+import dev.settle.common.PreconditionFailedException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.user.User;
 import dev.settle.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class GroupService {
+
+    private static final Logger log = LoggerFactory.getLogger(GroupService.class);
+
+    private static final Sort NEWEST_FIRST =
+            Sort.by(Sort.Order.desc("group.createdAt"), Sort.Order.asc("group.id"));
 
     private final GroupRepository groups;
     private final MembershipRepository memberships;
@@ -30,16 +40,27 @@ public class GroupService {
         User creator = findUser(creatorId);
         Group group = groups.save(new Group(request.name(), request.currency(), creator));
         memberships.save(new Membership(group, creator, MembershipRole.OWNER));
+        log.atInfo().addKeyValue("group.id", group.getId()).addKeyValue("user.id", creatorId).log("Group created");
         return GroupResponse.from(group);
     }
 
-    public List<GroupResponse> listFor(UUID userId) {
-        return memberships.findAllByUserId(userId).stream()
-                .map(Membership::getGroup)
-                .map(GroupResponse::from)
-                .sorted(Comparator.comparing(GroupResponse::createdAt).reversed()
-                        .thenComparing(GroupResponse::id))
-                .toList();
+    public PageResponse<GroupResponse> listFor(UUID userId, PageQuery query) {
+        return PageResponse.of(
+                memberships.findByUserId(userId, query.toPageable(NEWEST_FIRST)),
+                membership -> GroupResponse.from(membership.getGroup()));
+    }
+
+    @Transactional
+    public GroupResponse rename(UUID groupId, long expectedVersion, UpdateGroupRequest request) {
+        Group group = findGroup(groupId);
+        if (group.getVersion() != expectedVersion) {
+            throw new PreconditionFailedException("The group was modified by someone else; reload it and retry");
+        }
+        group.rename(request.name());
+        groups.flush();
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("group.version", group.getVersion())
+                .log("Group renamed");
+        return GroupResponse.from(group);
     }
 
     public GroupResponse get(UUID groupId) {
@@ -54,6 +75,7 @@ public class GroupService {
             throw new ConflictException("User is already a member of this group");
         }
         Membership saved = memberships.save(new Membership(group, user, MembershipRole.MEMBER));
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("member.id", user.getId()).log("Member added");
         return MembershipResponse.from(saved);
     }
 

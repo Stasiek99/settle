@@ -1,0 +1,16 @@
+# Secrets and local config must never end up in an image layer.
+.env
+.env.*
+!.env.example
+
+# Not needed to build.
+.git
+.github
+.idea
+target
+HELP.md
+ROADMAP.md
+README.md
+Dockerfile
+.dockerignore
+compose*.yaml

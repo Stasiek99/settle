@@ -1,0 +1,17 @@
+# Runs the packaged app next to the database from compose.yaml:
+#   docker compose -f compose.yaml -f compose.app.yaml up --build
+# Spring Boot's own Docker Compose support only reads compose.yaml, so this file
+# does not affect `./mvnw spring-boot:run`.
+services:
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - '8080:8080'

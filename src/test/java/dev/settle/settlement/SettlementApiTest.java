@@ -171,9 +171,9 @@ class SettlementApiTest {
 
         mvc.perform(get("/groups/{id}/settlements", group.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].amount").value(200))
-                .andExpect(jsonPath("$[1].amount").value(100));
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].amount").value(200))
+                .andExpect(jsonPath("$.content[1].amount").value(100));
     }
 
     @Test

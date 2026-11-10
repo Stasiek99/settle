@@ -32,6 +32,16 @@ You'll need JDK 21 and Docker (Docker Desktop must be running).
 
 3. Check that it's alive: <http://localhost:8080/actuator/health> should return `{"status":"UP"}`.
 
+## Running in Docker
+
+The `Dockerfile` builds a small image (multi-stage, layered jar, non-root user, `prod` profile with JSON logs). To run it together with the database:
+
+```bash
+docker compose -f compose.yaml -f compose.app.yaml up --build
+```
+
+It reads the same `.env` as local development. Outside this compose file, pass `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` and `JWT_SECRET` as environment variables; none of them are baked into the image.
+
 ## Running the tests
 
 ```bash
