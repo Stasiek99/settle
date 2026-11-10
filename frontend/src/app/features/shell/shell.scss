@@ -1,0 +1,21 @@
+.shell {
+  &__brand {
+    color: inherit;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__name {
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

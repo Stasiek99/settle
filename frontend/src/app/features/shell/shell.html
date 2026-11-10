@@ -1,0 +1,15 @@
+<p-toolbar class="shell__bar">
+  <ng-template #start>
+    <a class="shell__brand" routerLink="/groups">Settle</a>
+  </ng-template>
+  <ng-template #end>
+    <div class="shell__user">
+      @if (auth.user(); as user) {
+        <span class="shell__name">{{ user.displayName }}</span>
+      }
+      <p-button label="Log out" icon="pi pi-sign-out" severity="secondary" [text]="true" (onClick)="logout()" />
+    </div>
+  </ng-template>
+</p-toolbar>
+
+<router-outlet />

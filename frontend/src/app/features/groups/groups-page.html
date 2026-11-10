@@ -1,0 +1,76 @@
+<section class="groups">
+  <header class="groups__header">
+    <h1>Your groups</h1>
+    <p-button label="New group" icon="pi pi-plus" (onClick)="openDialog()" />
+  </header>
+
+  @if (loadError(); as message) {
+    <p-message severity="error" role="alert">{{ message }}</p-message>
+    <p-button label="Try again" icon="pi pi-refresh" severity="secondary" (onClick)="load(0)" />
+  } @else if (loading()) {
+    <div class="groups__list" aria-busy="true">
+      @for (placeholder of [1, 2, 3]; track placeholder) {
+        <p-skeleton height="4.5rem" />
+      }
+    </div>
+  } @else if (groups().length === 0) {
+    <p-card>
+      <p class="groups__empty">You are not in any group yet. Create one to start splitting expenses.</p>
+    </p-card>
+  } @else {
+    <ul class="groups__list">
+      @for (group of groups(); track group.id) {
+        <li>
+          <p-card>
+            <div class="groups__item">
+              <div>
+                <h2>{{ group.name }}</h2>
+                <small>Created {{ group.createdAt | date: 'mediumDate' }}</small>
+              </div>
+              <p-tag severity="secondary" [value]="group.currency" />
+            </div>
+          </p-card>
+        </li>
+      }
+    </ul>
+
+    <p-paginator
+      [rows]="pageSize"
+      [first]="first()"
+      [totalRecords]="totalElements()"
+      (onPageChange)="onPageChange($event)"
+    />
+  }
+</section>
+
+<p-dialog
+  header="New group"
+  [modal]="true"
+  [draggable]="false"
+  [visible]="dialogVisible()"
+  (visibleChange)="dialogVisible.set($event)"
+  [style]="{ width: 'min(94vw, 26rem)' }"
+>
+  <form class="groups__form" [formGroup]="form" (ngSubmit)="create()" novalidate>
+    <p-fluid>
+      <div class="groups__field">
+        <label for="group-name">Name</label>
+        <input pInputText id="group-name" formControlName="name" maxlength="100" autocomplete="off" />
+        @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+          <small class="groups__hint" role="alert">Name is required.</small>
+        }
+      </div>
+
+      <div class="groups__field">
+        <label [attr.for]="'group-currency'">Currency</label>
+        <p-select inputId="group-currency" formControlName="currency" [options]="currencies" appendTo="body" />
+      </div>
+
+      @if (createError(); as message) {
+        <p-message severity="error" role="alert">{{ message }}</p-message>
+      }
+
+      <p-button type="submit" label="Create group" [loading]="creating()" />
+    </p-fluid>
+  </form>
+</p-dialog>

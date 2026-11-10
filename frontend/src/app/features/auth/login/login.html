@@ -1,0 +1,48 @@
+<main class="auth">
+  <p-card header="Sign in" subheader="Welcome back to Settle.">
+    <form class="auth__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <p-fluid>
+        <div class="auth__field">
+          <label for="email">Email</label>
+          <input
+            pInputText
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+          />
+          @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+            <small class="auth__hint" role="alert">Email is required.</small>
+          }
+        </div>
+
+        <div class="auth__field">
+          <label [attr.for]="'password'">Password</label>
+          <p-password
+            inputId="password"
+            formControlName="password"
+            autocomplete="current-password"
+            [feedback]="false"
+            [toggleMask]="true"
+          />
+          @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+            <small class="auth__hint" role="alert">Password is required.</small>
+          }
+        </div>
+
+        @if (error(); as message) {
+          <p-message severity="error" role="alert">{{ message }}</p-message>
+        }
+
+        <p-button type="submit" label="Sign in" [loading]="submitting()" />
+      </p-fluid>
+    </form>
+
+    <ng-template #footer>
+      <p class="auth__switch">
+        No account yet? <a routerLink="/register">Create one</a>
+      </p>
+    </ng-template>
+  </p-card>
+</main>
