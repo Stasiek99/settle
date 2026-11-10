@@ -4,16 +4,21 @@
     <p-button label="New group" icon="pi pi-plus" (onClick)="openDialog()" />
   </header>
 
-  @if (loadError(); as message) {
+  @if (pager.error(); as message) {
     <p-message severity="error" role="alert">{{ message }}</p-message>
-    <p-button label="Try again" icon="pi pi-refresh" severity="secondary" (onClick)="load(0)" />
-  } @else if (loading()) {
+    <p-button
+      label="Try again"
+      icon="pi pi-refresh"
+      severity="secondary"
+      (onClick)="pager.load(0)"
+    />
+  } @else if (pager.loading()) {
     <div class="groups__list" aria-busy="true">
       @for (placeholder of [1, 2, 3]; track placeholder) {
         <p-skeleton height="4.5rem" />
       }
     </div>
-  } @else if (groups().length === 0) {
+  } @else if (pager.items().length === 0) {
     <p-card>
       <p class="groups__empty">
         You are not in any group yet. Create one to start splitting expenses.
@@ -21,12 +26,14 @@
     </p-card>
   } @else {
     <ul class="groups__list">
-      @for (group of groups(); track group.id) {
+      @for (group of pager.items(); track group.id) {
         <li>
           <p-card>
             <div class="groups__item">
               <div>
-                <h2>{{ group.name }}</h2>
+                <h2>
+                  <a class="groups__link" [routerLink]="['/groups', group.id]">{{ group.name }}</a>
+                </h2>
                 <small>Created {{ group.createdAt | date: 'mediumDate' }}</small>
               </div>
               <p-tag severity="secondary" [value]="group.currency" />
@@ -37,9 +44,9 @@
     </ul>
 
     <p-paginator
-      [rows]="pageSize"
-      [first]="first()"
-      [totalRecords]="totalElements()"
+      [rows]="pager.size"
+      [first]="pager.first()"
+      [totalRecords]="pager.total()"
       (onPageChange)="onPageChange($event)"
     />
   }

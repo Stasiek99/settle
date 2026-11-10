@@ -32,6 +32,33 @@ export const routes: Routes = [
         loadComponent: () => import('./features/groups/groups-page').then((m) => m.GroupsPage),
         title: 'Groups · Settle',
       },
+      {
+        path: 'groups/:groupId',
+        loadComponent: () => import('./features/group/group-page').then((m) => m.GroupPage),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'expenses' },
+          {
+            path: 'expenses',
+            loadComponent: () =>
+              import('./features/group/expenses/expenses-page').then((m) => m.ExpensesPage),
+            title: 'Expenses · Settle',
+          },
+          {
+            path: 'balances',
+            loadComponent: () =>
+              import('./features/group/balances/balances-page').then((m) => m.BalancesPage),
+            title: 'Balances · Settle',
+          },
+          {
+            path: 'settlements',
+            loadComponent: () =>
+              import('./features/group/settlements/settlements-page').then(
+                (m) => m.SettlementsPage,
+              ),
+            title: 'Settlements · Settle',
+          },
+        ],
+      },
     ],
   },
   { path: '**', redirectTo: '' },

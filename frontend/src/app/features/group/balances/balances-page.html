@@ -1,0 +1,39 @@
+@if (balances.error(); as message) {
+  <p-message severity="error" role="alert">{{ message }}</p-message>
+  <p-button
+    label="Try again"
+    icon="pi pi-refresh"
+    severity="secondary"
+    (onClick)="balances.load()"
+  />
+} @else if (balances.loading()) {
+  <div class="section__list" aria-busy="true">
+    @for (placeholder of [1, 2, 3]; track placeholder) {
+      <p-skeleton height="4rem" />
+    }
+  </div>
+} @else if (balances.value(); as result) {
+  @if (result.balances.length === 0) {
+    <p-card>
+      <p class="section__empty">No members yet.</p>
+    </p-card>
+  } @else {
+    <ul class="section__list">
+      @for (entry of result.balances; track entry.userId) {
+        <li>
+          <p-card>
+            <div class="section__item">
+              <h2>{{ entry.displayName }}</h2>
+              <div class="section__side">
+                <p-tag [severity]="severity(entry)" [value]="label(entry)" />
+                @if (entry.balance !== 0) {
+                  <strong>{{ absolute(entry) | money: result.currency }}</strong>
+                }
+              </div>
+            </div>
+          </p-card>
+        </li>
+      }
+    </ul>
+  }
+}

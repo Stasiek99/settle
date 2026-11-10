@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
@@ -14,10 +15,9 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 
 import { GroupsApi } from '../../core/groups/groups.api';
-import { Group } from '../../core/models';
+import { createPager } from '../../core/pager';
 import { problemMessage } from '../../core/problem';
 
-export const PAGE_SIZE = 10;
 export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CHF', 'CZK'];
 
 @Component({
@@ -25,6 +25,7 @@ export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CHF', 'CZK'];
   imports: [
     DatePipe,
     ReactiveFormsModule,
+    RouterLink,
     ButtonModule,
     CardModule,
     DialogModule,
@@ -44,14 +45,8 @@ export class GroupsPage {
   private readonly api = inject(GroupsApi);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly pageSize = PAGE_SIZE;
   protected readonly currencies = CURRENCIES;
-
-  protected readonly groups = signal<Group[]>([]);
-  protected readonly totalElements = signal(0);
-  protected readonly first = signal(0);
-  protected readonly loading = signal(true);
-  protected readonly loadError = signal<string | null>(null);
+  protected readonly pager = createPager((page, size) => this.api.list(page, size));
 
   protected readonly dialogVisible = signal(false);
   protected readonly creating = signal(false);
@@ -63,31 +58,11 @@ export class GroupsPage {
   });
 
   constructor() {
-    this.load(0);
-  }
-
-  protected load(page: number): void {
-    this.loading.set(true);
-    this.loadError.set(null);
-    this.api
-      .list(page, PAGE_SIZE)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (result) => {
-          this.groups.set(result.content);
-          this.totalElements.set(result.totalElements);
-          this.first.set(result.page * result.size);
-          this.loading.set(false);
-        },
-        error: (err: unknown) => {
-          this.loadError.set(problemMessage(err));
-          this.loading.set(false);
-        },
-      });
+    this.pager.load(0);
   }
 
   protected onPageChange(event: PaginatorState): void {
-    this.load(event.page ?? 0);
+    this.pager.load(event.page ?? 0);
   }
 
   protected openDialog(): void {
@@ -111,7 +86,7 @@ export class GroupsPage {
         next: () => {
           this.creating.set(false);
           this.dialogVisible.set(false);
-          this.load(0);
+          this.pager.load(0);
         },
         error: (err: unknown) => {
           this.createError.set(problemMessage(err));

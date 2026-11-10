@@ -5,6 +5,7 @@ import {
   TestRequest,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
 import { Group, Page } from '../../core/models';
@@ -38,7 +39,12 @@ describe('GroupsPage', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), providePrimeNG()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        providePrimeNG(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -79,6 +85,14 @@ describe('GroupsPage', () => {
     expect(text(fixture)).toContain('Flat');
     expect(text(fixture)).toContain('PLN');
     expect(text(fixture)).toContain('EUR');
+  });
+
+  it('links each group to its page', async () => {
+    const fixture = await render();
+
+    const link = query<HTMLAnchorElement>(fixture, 'a[href="/groups/id-Trip"]');
+    expect(link?.textContent).toContain('Trip');
+    expect(query(fixture, 'a[href="/groups/id-Flat"]')).not.toBeNull();
   });
 
   it('shows an empty state for a user without groups', async () => {

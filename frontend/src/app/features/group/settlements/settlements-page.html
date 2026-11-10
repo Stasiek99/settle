@@ -1,0 +1,88 @@
+<section aria-labelledby="suggested-heading">
+  <h2 id="suggested-heading" class="section__heading">Suggested transfers</h2>
+
+  @if (suggestions.error(); as message) {
+    <p-message severity="error" role="alert">{{ message }}</p-message>
+    <p-button
+      label="Try again"
+      icon="pi pi-refresh"
+      severity="secondary"
+      (onClick)="suggestions.load()"
+    />
+  } @else if (suggestions.loading()) {
+    <p-skeleton height="4rem" />
+  } @else if (suggestions.value(); as result) {
+    @if (result.transfers.length === 0) {
+      <p-card>
+        <p class="section__empty">Everyone is settled up.</p>
+      </p-card>
+    } @else {
+      <ul class="section__list">
+        @for (transfer of result.transfers; track $index) {
+          <li>
+            <p-card>
+              <div class="section__item">
+                <span>
+                  <strong>{{ store.nameOf(transfer.paidBy) }}</strong> pays
+                  <strong>{{ store.nameOf(transfer.paidTo) }}</strong>
+                </span>
+                <strong>{{ transfer.amount | money: result.currency }}</strong>
+              </div>
+            </p-card>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>
+
+<section aria-labelledby="history-heading">
+  <h2 id="history-heading" class="section__heading">History</h2>
+
+  @if (history.error(); as message) {
+    <p-message severity="error" role="alert">{{ message }}</p-message>
+    <p-button
+      label="Try again"
+      icon="pi pi-refresh"
+      severity="secondary"
+      (onClick)="history.load(0)"
+    />
+  } @else if (history.loading()) {
+    <div class="section__list" aria-busy="true">
+      @for (placeholder of [1, 2]; track placeholder) {
+        <p-skeleton height="4rem" />
+      }
+    </div>
+  } @else if (history.items().length === 0) {
+    <p-card>
+      <p class="section__empty">No payments recorded yet.</p>
+    </p-card>
+  } @else {
+    <ul class="section__list">
+      @for (settlement of history.items(); track settlement.id) {
+        <li>
+          <p-card>
+            <div class="section__item">
+              <div>
+                <span>
+                  <strong>{{ store.nameOf(settlement.paidBy) }}</strong> paid
+                  <strong>{{ store.nameOf(settlement.paidTo) }}</strong>
+                </span>
+                <br />
+                <small>{{ settlement.settledOn | date: 'mediumDate' }}</small>
+              </div>
+              <strong>{{ settlement.amount | money: settlement.currency }}</strong>
+            </div>
+          </p-card>
+        </li>
+      }
+    </ul>
+
+    <p-paginator
+      [rows]="history.size"
+      [first]="history.first()"
+      [totalRecords]="history.total()"
+      (onPageChange)="onPageChange($event)"
+    />
+  }
+</section>
