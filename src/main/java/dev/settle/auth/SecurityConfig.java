@@ -24,6 +24,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.BearerTokenErrors;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -56,7 +57,8 @@ class SecurityConfig {
                         .jwt(Customizer.withDefaults())
                         .bearerTokenResolver(ignoringAuthEndpoints())
                         .authenticationEntryPoint(entryPoint)
-                        .accessDeniedHandler(accessDeniedHandler));
+                        .accessDeniedHandler(accessDeniedHandler))
+                .addFilterAfter(new MdcUserFilter(), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

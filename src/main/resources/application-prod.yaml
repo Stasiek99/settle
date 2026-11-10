@@ -1,0 +1,12 @@
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        environment: production
+    json:
+      stacktrace:
+        root: first
+        max-length: 4096
+        max-throwable-depth: 20

@@ -10,6 +10,8 @@ import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
 import dev.settle.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class SettlementService {
+
+    private static final Logger log = LoggerFactory.getLogger(SettlementService.class);
 
     private static final Sort NEWEST_FIRST =
             Sort.by(Sort.Order.desc("settledOn"), Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
@@ -68,6 +72,8 @@ public class SettlementService {
                 users.getReferenceById(request.paidTo()),
                 Money.ofMinor(request.amount(), currency),
                 date));
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("settlement.id", settlement.getId())
+                .log("Settlement recorded");
         return SettlementResponse.from(settlement);
     }
 

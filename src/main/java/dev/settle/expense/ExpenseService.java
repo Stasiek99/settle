@@ -10,6 +10,8 @@ import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
 import dev.settle.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class ExpenseService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExpenseService.class);
 
     private static final Sort NEWEST_FIRST =
             Sort.by(Sort.Order.desc("expenseDate"), Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
@@ -79,6 +83,10 @@ public class ExpenseService {
         if (split.leftoverUnits() > 0) {
             groups.advanceRotationCursor(groupId, split.leftoverUnits());
         }
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("expense.id", expense.getId())
+                .addKeyValue("expense.split_type", request.splitType())
+                .addKeyValue("expense.participants", participants.size())
+                .log("Expense created");
         return ExpenseResponse.from(expense);
     }
 

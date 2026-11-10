@@ -7,6 +7,8 @@ import dev.settle.common.PreconditionFailedException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.user.User;
 import dev.settle.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class GroupService {
+
+    private static final Logger log = LoggerFactory.getLogger(GroupService.class);
 
     private static final Sort NEWEST_FIRST =
             Sort.by(Sort.Order.desc("group.createdAt"), Sort.Order.asc("group.id"));
@@ -36,6 +40,7 @@ public class GroupService {
         User creator = findUser(creatorId);
         Group group = groups.save(new Group(request.name(), request.currency(), creator));
         memberships.save(new Membership(group, creator, MembershipRole.OWNER));
+        log.atInfo().addKeyValue("group.id", group.getId()).addKeyValue("user.id", creatorId).log("Group created");
         return GroupResponse.from(group);
     }
 
@@ -53,6 +58,8 @@ public class GroupService {
         }
         group.rename(request.name());
         groups.flush();
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("group.version", group.getVersion())
+                .log("Group renamed");
         return GroupResponse.from(group);
     }
 
@@ -68,6 +75,7 @@ public class GroupService {
             throw new ConflictException("User is already a member of this group");
         }
         Membership saved = memberships.save(new Membership(group, user, MembershipRole.MEMBER));
+        log.atInfo().addKeyValue("group.id", groupId).addKeyValue("member.id", user.getId()).log("Member added");
         return MembershipResponse.from(saved);
     }
 

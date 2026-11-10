@@ -32,6 +32,10 @@ management:
       exposure:
         include: health,info
 
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
 springdoc:
   swagger-ui:
     operations-sorter: method
