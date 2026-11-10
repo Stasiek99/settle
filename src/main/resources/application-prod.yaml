@@ -10,3 +10,9 @@ logging:
         root: first
         max-length: 4096
         max-throwable-depth: 20
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

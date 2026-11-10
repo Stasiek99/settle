@@ -36,3 +36,29 @@ jobs:
       # which works out of the box because ubuntu runners ship with Docker.
       - name: Build and test
         run: ./mvnw -B -ntp verify
+
+  # Builds the image and boots it next to Postgres, so a broken Dockerfile or a
+  # missing runtime setting is caught here and not on the first deploy.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create env file from the example
+        run: cp .env.example .env
+
+      - name: Build the image and start it with the database
+        run: docker compose -f compose.yaml -f compose.app.yaml up --build --wait --wait-timeout 180
+
+      - name: Check the health endpoint
+        run: curl --fail --silent http://localhost:8080/actuator/health
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.app.yaml logs
+
+      - name: Stop containers
+        if: always()
+        run: docker compose -f compose.yaml -f compose.app.yaml down --volumes
