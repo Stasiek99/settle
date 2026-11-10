@@ -1,6 +1,7 @@
 package dev.settle.expense;
 
 import dev.settle.TestcontainersConfiguration;
+import dev.settle.support.TestAuth;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.Membership;
@@ -69,6 +70,7 @@ class ExpenseApiTest {
         memberships.save(new Membership(group, members.get(0), MembershipRole.OWNER));
         memberships.save(new Membership(group, members.get(1), MembershipRole.MEMBER));
         memberships.save(new Membership(group, members.get(2), MembershipRole.MEMBER));
+        TestAuth.authenticateAs(members.getFirst().getId());
         em.flush();
         em.clear();
     }
@@ -251,6 +253,7 @@ class ExpenseApiTest {
     @Test
     void anExpenseIsNotVisibleThroughAnotherGroup() throws Exception {
         Group other = groups.save(new Group("Other", "PLN", members.getFirst()));
+        memberships.save(new Membership(other, members.getFirst(), MembershipRole.OWNER));
         em.flush();
         em.clear();
         String location = postExpense(group.getId(), equalExpense("Pizza", 1000, id(0), id(0), id(1)))

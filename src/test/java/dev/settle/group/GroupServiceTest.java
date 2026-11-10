@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +57,7 @@ class GroupServiceTest {
         when(users.findById(ann.getId())).thenReturn(Optional.of(ann));
         when(groups.save(any(Group.class))).thenAnswer(inv -> TestEntities.withId(inv.getArgument(0)));
 
-        GroupResponse response = service.create(new CreateGroupRequest("Trip", "eur", ann.getId()));
+        GroupResponse response = service.create(new CreateGroupRequest("Trip", "eur"), ann.getId());
 
         ArgumentCaptor<Membership> membership = ArgumentCaptor.forClass(Membership.class);
         verify(memberships).save(membership.capture());
@@ -72,10 +73,32 @@ class GroupServiceTest {
         UUID unknown = UUID.randomUUID();
         when(users.findById(unknown)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.create(new CreateGroupRequest("Trip", "EUR", unknown)))
+        assertThatThrownBy(() -> service.create(new CreateGroupRequest("Trip", "EUR"), unknown))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verifyNoInteractions(groups, memberships);
+    }
+
+    @Test
+    void listForReturnsOnlyTheGroupsOfTheGivenUserNewestFirst() {
+        Group older = TestEntities.group("Older", "PLN", ann);
+        ReflectionTestUtils.setField(older, "createdAt", java.time.Instant.parse("2026-01-01T00:00:00Z"));
+        Group newer = TestEntities.group("Newer", "PLN", ann);
+        ReflectionTestUtils.setField(newer, "createdAt", java.time.Instant.parse("2026-06-01T00:00:00Z"));
+        when(memberships.findAllByUserId(ann.getId())).thenReturn(List.of(
+                new Membership(older, ann, MembershipRole.OWNER),
+                new Membership(newer, ann, MembershipRole.MEMBER)));
+
+        List<GroupResponse> result = service.listFor(ann.getId());
+
+        assertThat(result).extracting(GroupResponse::name).containsExactly("Newer", "Older");
+    }
+
+    @Test
+    void listForIsEmptyForSomeoneWithoutGroups() {
+        when(memberships.findAllByUserId(bob.getId())).thenReturn(List.of());
+
+        assertThat(service.listFor(bob.getId())).isEmpty();
     }
 
     @Test

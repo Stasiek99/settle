@@ -1,6 +1,7 @@
 package dev.settle.balance;
 
 import dev.settle.TestcontainersConfiguration;
+import dev.settle.support.TestAuth;
 import dev.settle.expense.CreateExpenseRequest;
 import dev.settle.expense.CreateExpenseRequest.Participant;
 import dev.settle.expense.ExpenseResponse;
@@ -74,6 +75,7 @@ class BalanceApiTest {
         for (User member : List.of(ann, bob, cid)) {
             memberships.save(new Membership(group, member, MembershipRole.MEMBER));
         }
+        TestAuth.authenticateAs(ann.getId());
         em.flush();
         em.clear();
     }

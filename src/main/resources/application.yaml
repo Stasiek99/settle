@@ -2,6 +2,13 @@ spring:
   application:
     name: settle
 
+  config:
+    import: optional:file:.env[.properties]
+
+  jackson:
+    deserialization:
+      accept-float-as-int: false
+
   jpa:
     # Schema is owned by Flyway; Hibernate only checks that entities match it.
     hibernate:
@@ -11,6 +18,13 @@ spring:
 
   flyway:
     enabled: true
+
+settle:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      issuer: settle
+      expiration: 1h
 
 management:
   endpoints:

@@ -16,7 +16,7 @@ A small app for splitting expenses with friends and keeping track of who owes wh
 
 You'll need JDK 21 and Docker (Docker Desktop must be running).
 
-1. Create your env file and set a password:
+1. Create your env file, then set a database password and a random `JWT_SECRET` of at least 32 characters (for example `openssl rand -base64 48`):
 
    ```bash
    cp .env.example .env

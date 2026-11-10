@@ -1,6 +1,7 @@
 package dev.settle.group;
 
 import dev.settle.TestcontainersConfiguration;
+import dev.settle.support.TestAuth;
 import dev.settle.user.User;
 import dev.settle.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,13 +41,14 @@ class GroupApiTest {
     void createUsers() {
         ann = users.save(new User("ann@example.com", "Ann"));
         bob = users.save(new User("bob@example.com", "Bob"));
+        TestAuth.authenticateAs(ann.getId());
     }
 
     @Test
-    void createsGroupAndMakesCreatorTheOwner() throws Exception {
-        String body = createGroupJson("Trip to Rome", "eur", ann.getId());
-
-        String location = mvc.perform(post("/groups").contentType(MediaType.APPLICATION_JSON).content(body))
+    void createsGroupAndMakesTheCallerTheOwner() throws Exception {
+        String location = mvc.perform(post("/groups")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createGroupJson("Trip to Rome", "eur")))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.name").value("Trip to Rome"))
@@ -66,23 +68,15 @@ class GroupApiTest {
     void rejectsInvalidGroup() throws Exception {
         mvc.perform(post("/groups")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createGroupJson("", "ZLOTY", ann.getId())))
+                        .content(createGroupJson("", "ZLOTY")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[?(@.field == 'name')]").exists())
                 .andExpect(jsonPath("$.errors[?(@.field == 'currency')]").exists());
     }
 
     @Test
-    void returns404WhenCreatorDoesNotExist() throws Exception {
-        mvc.perform(post("/groups")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(createGroupJson("Flat", "PLN", UUID.randomUUID())))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
     void addsMemberAndRejectsDuplicate() throws Exception {
-        UUID groupId = createGroup("Flat", ann);
+        UUID groupId = createGroup("Flat");
         String addBob = "{\"userId\": \"%s\"}".formatted(bob.getId());
 
         mvc.perform(post("/groups/{id}/members", groupId).contentType(MediaType.APPLICATION_JSON).content(addBob))
@@ -98,8 +92,8 @@ class GroupApiTest {
     }
 
     @Test
-    void returns404ForUnknownGroupOrUser() throws Exception {
-        UUID groupId = createGroup("Flat", ann);
+    void returns404ForUnknownGroupOrUnknownUserToAdd() throws Exception {
+        UUID groupId = createGroup("Flat");
 
         mvc.perform(get("/groups/{id}", UUID.randomUUID())).andExpect(status().isNotFound());
         mvc.perform(get("/groups/{id}/members", UUID.randomUUID())).andExpect(status().isNotFound());
@@ -112,7 +106,7 @@ class GroupApiTest {
 
     @Test
     void rejectsAddMemberWithoutUserId() throws Exception {
-        UUID groupId = createGroup("Flat", ann);
+        UUID groupId = createGroup("Flat");
 
         mvc.perform(post("/groups/{id}/members", groupId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,18 +115,45 @@ class GroupApiTest {
                 .andExpect(jsonPath("$.errors[?(@.field == 'userId')]").exists());
     }
 
-    private UUID createGroup(String name, User creator) throws Exception {
+    @Test
+    void listsOnlyTheGroupsTheCallerBelongsToNewestFirst() throws Exception {
+        createGroup("First");
+        createGroup("Second");
+        TestAuth.authenticateAs(bob.getId());
+        createGroup("Bobs");
+
+        TestAuth.authenticateAs(ann.getId());
+        mvc.perform(get("/groups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Second"))
+                .andExpect(jsonPath("$[1].name").value("First"));
+
+        TestAuth.authenticateAs(bob.getId());
+        mvc.perform(get("/groups"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Bobs"));
+    }
+
+    @Test
+    void aUserWithoutGroupsGetsAnEmptyList() throws Exception {
+        mvc.perform(get("/groups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private UUID createGroup(String name) throws Exception {
         String json = mvc.perform(post("/groups")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createGroupJson(name, "PLN", creator.getId())))
+                        .content(createGroupJson(name, "PLN")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return UUID.fromString(json.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1"));
     }
 
-    private static String createGroupJson(String name, String currency, UUID createdBy) {
+    private static String createGroupJson(String name, String currency) {
         return """
-                {"name": "%s", "currency": "%s", "createdBy": "%s"}
-                """.formatted(name, currency, createdBy);
+                {"name": "%s", "currency": "%s"}
+                """.formatted(name, currency);
     }
 }
