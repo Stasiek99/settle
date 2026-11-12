@@ -34,6 +34,20 @@ settle:
       auth-path: /api/auth
       secure-cookies: true
 
+  cache:
+    # In-process (Caffeine): each instance keeps its own copy, so the TTLs bound how stale another
+    # instance can be after a write elsewhere. A write evicts the local entry immediately and again after commit.
+    memberships:
+      # Only positive answers are cached; nobody loses access today, and a new member is never cached as "no".
+      ttl: 5m
+      max-size: 50000
+    balances:
+      ttl: 30s
+      max-size: 10000
+    suggestions:
+      ttl: 30s
+      max-size: 10000
+
 management:
   endpoints:
     web:

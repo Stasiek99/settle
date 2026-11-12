@@ -1,5 +1,6 @@
 package dev.settle.settlement;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.Currencies;
 import dev.settle.common.InvalidRequestException;
 import dev.settle.common.PageQuery;
@@ -36,14 +37,17 @@ public class SettlementService {
     private final MembershipRepository memberships;
     private final SettlementRepository settlements;
     private final UserRepository users;
+    private final GroupCacheEvictor cacheEvictor;
     private final Clock clock;
 
     public SettlementService(GroupRepository groups, MembershipRepository memberships,
-                             SettlementRepository settlements, UserRepository users, Clock clock) {
+                             SettlementRepository settlements, UserRepository users,
+                             GroupCacheEvictor cacheEvictor, Clock clock) {
         this.groups = groups;
         this.memberships = memberships;
         this.settlements = settlements;
         this.users = users;
+        this.cacheEvictor = cacheEvictor;
         this.clock = clock;
     }
 
@@ -68,6 +72,7 @@ public class SettlementService {
                 users.getReferenceById(request.paidTo()),
                 Money.ofMinor(request.amount(), currency),
                 date));
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("settlement.id", settlement.getId())
                 .log("Settlement recorded");
         return SettlementResponse.from(settlement);

@@ -1,5 +1,6 @@
 package dev.settle.settlement;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.InvalidRequestException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.Money;
@@ -50,13 +51,16 @@ class SettlementServiceTest {
     @Mock
     private UserRepository users;
 
+    @Mock
+    private GroupCacheEvictor cacheEvictor;
+
     private SettlementService service;
     private Group flat;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-09T12:00:00Z"), ZoneOffset.UTC);
-        service = new SettlementService(groups, memberships, settlements, users, clock);
+        service = new SettlementService(groups, memberships, settlements, users, cacheEvictor, clock);
 
         User ann = TestEntities.withId(new User("ann@example.com", "Ann"), ANN);
         flat = TestEntities.group("Flat", "PLN", ann);
@@ -86,6 +90,13 @@ class SettlementServiceTest {
         assertThat(response.paidTo()).isEqualTo(ANN);
         assertThat(response.amount()).isEqualTo(1500);
         assertThat(response.currency()).isEqualTo("PLN");
+    }
+
+    @Test
+    void evictsTheCachedGroupDataOnceTheSettlementIsSaved() {
+        service.create(flat.getId(), request(BOB, ANN, 100, "PLN"));
+
+        verify(cacheEvictor).evictGroupData(flat.getId());
     }
 
     @Test

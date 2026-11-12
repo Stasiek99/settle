@@ -2,6 +2,7 @@ package dev.settle.settlement;
 
 import dev.settle.balance.BalanceRepository;
 import dev.settle.balance.MemberNetBalance;
+import dev.settle.cache.CacheNames;
 import dev.settle.common.Currencies;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.Money;
@@ -9,6 +10,7 @@ import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
 import dev.settle.settlement.SettlementSuggestionsResponse.CurrencyTransfers;
 import dev.settle.settlement.SettlementSuggestionsResponse.Transfer;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class SettlementSuggestionService {
         this.balances = balances;
     }
 
+    @Cacheable(cacheNames = CacheNames.SUGGESTIONS, key = "#groupId")
     public SettlementSuggestionsResponse forGroup(UUID groupId) {
         Group group = groups.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));

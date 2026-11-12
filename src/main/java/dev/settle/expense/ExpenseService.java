@@ -1,5 +1,6 @@
 package dev.settle.expense;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.Currencies;
 import dev.settle.common.ETags;
 import dev.settle.common.ForbiddenException;
@@ -45,15 +46,18 @@ public class ExpenseService {
     private final ExpenseRepository expenses;
     private final UserRepository users;
     private final GroupAccess access;
+    private final GroupCacheEvictor cacheEvictor;
     private final Clock clock;
 
     public ExpenseService(GroupRepository groups, MembershipRepository memberships,
-                          ExpenseRepository expenses, UserRepository users, GroupAccess access, Clock clock) {
+                          ExpenseRepository expenses, UserRepository users, GroupAccess access,
+                          GroupCacheEvictor cacheEvictor, Clock clock) {
         this.groups = groups;
         this.memberships = memberships;
         this.expenses = expenses;
         this.users = users;
         this.access = access;
+        this.cacheEvictor = cacheEvictor;
         this.clock = clock;
     }
 
@@ -73,6 +77,7 @@ public class ExpenseService {
         expense.requireSplitsAddUp();
 
         expenses.save(expense);
+        cacheEvictor.evictGroupData(groupId);
         if (prepared.split().leftoverUnits() > 0) {
             groups.advanceRotationCursor(groupId, prepared.split().leftoverUnits());
         }
@@ -108,6 +113,7 @@ public class ExpenseService {
         expense.requireSplitsAddUp();
 
         expenses.flush();
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("expense.id", expenseId)
                 .addKeyValue("user.id", actingUserId).addKeyValue("expense.version", expense.getVersion())
                 .log("Expense updated");
@@ -123,6 +129,7 @@ public class ExpenseService {
 
         expenses.delete(expense);
         expenses.flush();
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("expense.id", expenseId)
                 .addKeyValue("user.id", actingUserId).log("Expense deleted");
     }

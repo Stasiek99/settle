@@ -1,5 +1,6 @@
 package dev.settle.group;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.ConflictException;
 import dev.settle.common.PageQuery;
 import dev.settle.common.PageResponse;
@@ -43,6 +44,9 @@ class GroupServiceTest {
 
     @Mock
     private UserRepository users;
+
+    @Mock
+    private GroupCacheEvictor cacheEvictor;
 
     @InjectMocks
     private GroupService service;
@@ -129,6 +133,7 @@ class GroupServiceTest {
         assertThat(response.userId()).isEqualTo(bob.getId());
         assertThat(response.displayName()).isEqualTo("Bob");
         assertThat(response.role()).isEqualTo(MembershipRole.MEMBER);
+        verify(cacheEvictor).evictGroupData(flat.getId());
     }
 
     @Test
@@ -141,6 +146,7 @@ class GroupServiceTest {
                 .isInstanceOf(ConflictException.class);
 
         verify(memberships, never()).save(any());
+        verify(cacheEvictor, never()).evictGroupData(any());
     }
 
     @Test

@@ -26,26 +26,29 @@ class GroupAccessTest {
     @Mock
     private MembershipRepository memberships;
 
+    @Mock
+    private MembershipLookup lookup;
+
     @InjectMocks
     private GroupAccess access;
 
     @Test
     void aMemberPassesTheMemberCheck() {
-        when(memberships.existsByGroupIdAndUserId(group, user)).thenReturn(true);
+        when(lookup.isMember(group, user)).thenReturn(true);
 
         assertThatCode(() -> access.requireMember(group, user)).doesNotThrowAnyException();
     }
 
     @Test
     void aNonMemberGetsNotFoundNotForbidden() {
-        when(memberships.existsByGroupIdAndUserId(group, user)).thenReturn(false);
+        when(lookup.isMember(group, user)).thenReturn(false);
 
         assertThatThrownBy(() -> access.requireMember(group, user)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
     void theOwnerPassesTheOwnerCheck() {
-        when(memberships.existsByGroupIdAndUserId(group, user)).thenReturn(true);
+        when(lookup.isMember(group, user)).thenReturn(true);
         when(memberships.existsByGroupIdAndUserIdAndRole(group, user, MembershipRole.OWNER)).thenReturn(true);
 
         assertThatCode(() -> access.requireOwner(group, user)).doesNotThrowAnyException();
@@ -53,7 +56,7 @@ class GroupAccessTest {
 
     @Test
     void aPlainMemberIsForbiddenFromOwnerActions() {
-        when(memberships.existsByGroupIdAndUserId(group, user)).thenReturn(true);
+        when(lookup.isMember(group, user)).thenReturn(true);
         when(memberships.existsByGroupIdAndUserIdAndRole(group, user, MembershipRole.OWNER)).thenReturn(false);
 
         assertThatThrownBy(() -> access.requireOwner(group, user)).isInstanceOf(ForbiddenException.class);
@@ -61,7 +64,7 @@ class GroupAccessTest {
 
     @Test
     void aNonMemberAskingForOwnerActionsLearnsNothingAboutTheGroup() {
-        when(memberships.existsByGroupIdAndUserId(group, user)).thenReturn(false);
+        when(lookup.isMember(group, user)).thenReturn(false);
 
         assertThatThrownBy(() -> access.requireOwner(group, user)).isInstanceOf(ResourceNotFoundException.class);
 
