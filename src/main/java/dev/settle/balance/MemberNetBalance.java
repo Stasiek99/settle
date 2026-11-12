@@ -6,5 +6,7 @@ public interface MemberNetBalance {
 
     UUID getUserId();
 
+    String getCurrency();
+
     long getBalanceMinor();
 }

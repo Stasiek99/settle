@@ -29,7 +29,7 @@ import { SelectModule } from 'primeng/select';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { GroupsApi } from '../../../core/groups/groups.api';
-import { formatMoney, minorUnitDigits } from '../../../core/money';
+import { CURRENCIES, formatMoney, minorUnitDigits } from '../../../core/money';
 import { problemMessage } from '../../../core/problem';
 import { MAX_AMOUNT_MINOR, toMinor } from '../expense-form/expense-form.logic';
 import { GroupStore } from '../group-store';
@@ -62,6 +62,7 @@ export class SettlementFormPage {
   readonly from = input<string>();
   readonly to = input<string>();
   readonly amount = input<string>();
+  readonly currencyParam = input<string | undefined>(undefined, { alias: 'currency' });
 
   private readonly group = (() => {
     const group = this.store.group();
@@ -71,8 +72,9 @@ export class SettlementFormPage {
     return group;
   })();
 
-  protected readonly currency = this.group.currency;
-  protected readonly digits = minorUnitDigits(this.group.currency);
+  protected readonly currencyOptions = [...new Set([this.group.currency, ...CURRENCIES])];
+  protected readonly currency = signal(this.group.currency);
+  protected readonly digits = computed(() => minorUnitDigits(this.currency()));
   protected readonly members = this.store.members();
 
   protected readonly saving = signal(false);
@@ -84,15 +86,27 @@ export class SettlementFormPage {
     return value.paidBy && value.paidBy === value.paidTo ? { samePerson: true } : null;
   };
 
+  private readonly amountInRange: ValidatorFn = (control) => {
+    const value = control.value as number | null;
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const scale = 10 ** this.digits();
+    if (value < 1 / scale) {
+      return { min: true };
+    }
+    return value > MAX_AMOUNT_MINOR / scale ? { max: true } : null;
+  };
+
   protected readonly form = new FormGroup(
     {
       paidBy: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
       paidTo: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-      amount: new FormControl<number | null>(null, [
-        Validators.required,
-        Validators.min(1 / 10 ** this.digits),
-        Validators.max(MAX_AMOUNT_MINOR / 10 ** this.digits),
-      ]),
+      currency: new FormControl(this.group.currency, {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      amount: new FormControl<number | null>(null, [Validators.required, this.amountInRange]),
       settledOn: new FormControl<Date | null>(new Date(), [Validators.required]),
     },
     { validators: [this.differentPeople] },
@@ -108,18 +122,30 @@ export class SettlementFormPage {
     if (!paidBy || !paidTo || paidBy === paidTo || !amount || amount <= 0) {
       return null;
     }
-    const money = formatMoney(toMinor(amount, this.digits), this.currency, this.locale);
+    const money = formatMoney(toMinor(amount, this.digits()), this.currency(), this.locale);
     return `${this.store.nameOf(paidBy)} pays ${this.store.nameOf(paidTo)} ${money}`;
   });
 
   constructor() {
+    this.form.controls.currency.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((code) => {
+        this.currency.set(code);
+        this.form.controls.amount.updateValueAndValidity();
+      });
+
     effect(() => {
+      const requested = this.currencyParam()?.toUpperCase();
+      const currency =
+        requested !== undefined && this.currencyOptions.includes(requested)
+          ? requested
+          : this.group.currency;
       const prefill = prefillFromParams(
         { from: this.from(), to: this.to(), amount: this.amount() },
         this.members.map((member) => member.userId),
-        this.digits,
+        minorUnitDigits(currency),
       );
-      untracked(() => this.form.patchValue(prefill));
+      untracked(() => this.form.patchValue({ ...prefill, currency }));
     });
 
     effect(() => {
@@ -145,10 +171,10 @@ export class SettlementFormPage {
         paidBy: raw.paidBy,
         paidTo: raw.paidTo,
         amount: raw.amount ?? 0,
-        currency: this.currency,
+        currency: raw.currency,
         date: raw.settledOn,
       },
-      this.digits,
+      this.digits(),
     );
     this.saving.set(true);
     this.error.set(null);

@@ -193,10 +193,14 @@ class ExpenseServiceTest {
     }
 
     @Test
-    void rejectsACurrencyDifferentFromTheGroups() {
-        var request = new CreateExpenseRequest("X", 1000L, "EUR", ANN, SplitType.EQUAL, null, equalBetween(ANN));
+    void acceptsACurrencyDifferentFromTheGroupsAndSplitsInThatCurrency() {
+        var request = new CreateExpenseRequest("Hotel", 1001L, "eur", ANN, SplitType.EQUAL, null,
+                equalBetween(ANN, BOB));
 
-        assertRejected(request, "does not match the group currency");
+        ExpenseResponse response = service.create(flat.getId(), request);
+
+        assertThat(response.currency()).isEqualTo("EUR");
+        assertThat(amounts(response)).containsExactly(501L, 500L);
     }
 
     @Test

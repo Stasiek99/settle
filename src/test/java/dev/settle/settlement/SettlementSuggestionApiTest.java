@@ -96,16 +96,27 @@ class SettlementSuggestionApiTest {
         em.clear();
     }
 
+    private void addEqualExpense(String currency, User payer, long amount, User... participants) {
+        List<Participant> list = new ArrayList<>();
+        for (User participant : participants) {
+            list.add(new Participant(participant.getId(), null, null));
+        }
+        expenseService.create(group.getId(),
+                new CreateExpenseRequest("expense", amount, currency, payer.getId(), SplitType.EQUAL, null, list));
+        em.flush();
+        em.clear();
+    }
+
     private static String amountPaidBy(UUID user) {
-        return "$.transfers[?(@.paidBy == '%s')].amount".formatted(user);
+        return "$.currencies[0].transfers[?(@.paidBy == '%s')].amount".formatted(user);
     }
 
     @Test
     void groupWithoutDebtsHasNoSuggestions() throws Exception {
         mvc.perform(get("/groups/{id}/settlements/suggestions", group.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.currency").value("PLN"))
-                .andExpect(jsonPath("$.transfers.length()").value(0));
+                .andExpect(jsonPath("$.defaultCurrency").value("PLN"))
+                .andExpect(jsonPath("$.currencies[0].transfers.length()").value(0));
     }
 
     @Test
@@ -114,11 +125,11 @@ class SettlementSuggestionApiTest {
 
         mvc.perform(get("/groups/{id}/settlements/suggestions", group.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.transfers.length()").value(2))
+                .andExpect(jsonPath("$.currencies[0].transfers.length()").value(2))
                 .andExpect(jsonPath(amountPaidBy(bob.getId())).value(contains(1000)))
                 .andExpect(jsonPath(amountPaidBy(cid.getId())).value(contains(1000)))
-                .andExpect(jsonPath("$.transfers[0].paidTo").value(ann.getId().toString()))
-                .andExpect(jsonPath("$.transfers[1].paidTo").value(ann.getId().toString()));
+                .andExpect(jsonPath("$.currencies[0].transfers[0].paidTo").value(ann.getId().toString()))
+                .andExpect(jsonPath("$.currencies[0].transfers[1].paidTo").value(ann.getId().toString()));
     }
 
     @Test
@@ -129,10 +140,10 @@ class SettlementSuggestionApiTest {
         em.clear();
 
         mvc.perform(get("/groups/{id}/settlements/suggestions", group.getId()))
-                .andExpect(jsonPath("$.transfers.length()").value(1))
-                .andExpect(jsonPath("$.transfers[0].paidBy").value(cid.getId().toString()))
-                .andExpect(jsonPath("$.transfers[0].paidTo").value(ann.getId().toString()))
-                .andExpect(jsonPath("$.transfers[0].amount").value(1000));
+                .andExpect(jsonPath("$.currencies[0].transfers.length()").value(1))
+                .andExpect(jsonPath("$.currencies[0].transfers[0].paidBy").value(cid.getId().toString()))
+                .andExpect(jsonPath("$.currencies[0].transfers[0].paidTo").value(ann.getId().toString()))
+                .andExpect(jsonPath("$.currencies[0].transfers[0].amount").value(1000));
     }
 
     @Test
@@ -152,8 +163,8 @@ class SettlementSuggestionApiTest {
         }
 
         SettlementSuggestionsResponse suggestions = suggestionService.forGroup(group.getId());
-        assertThat(suggestions.transfers().size()).isLessThanOrEqualTo(2);
-        for (SettlementSuggestionsResponse.Transfer transfer : suggestions.transfers()) {
+        assertThat(suggestions.currencies().get(0).transfers().size()).isLessThanOrEqualTo(2);
+        for (SettlementSuggestionsResponse.Transfer transfer : suggestions.currencies().get(0).transfers()) {
             settlementService.create(group.getId(),
                     new CreateSettlementRequest(transfer.paidBy(), transfer.paidTo(), transfer.amount(), "PLN", null));
         }
@@ -162,8 +173,33 @@ class SettlementSuggestionApiTest {
 
         ResultActions balances = mvc.perform(get("/groups/{id}/balances", group.getId())).andExpect(status().isOk());
         for (User user : everyone) {
-            balances.andExpect(jsonPath("$.balances[?(@.userId == '%s')].balance".formatted(user.getId())).value(contains(0)));
+            balances.andExpect(jsonPath("$.currencies[0].balances[?(@.userId == '%s')].balance".formatted(user.getId())).value(contains(0)));
         }
-        assertThat(suggestionService.forGroup(group.getId()).transfers()).isEmpty();
+        assertThat(suggestionService.forGroup(group.getId()).currencies().get(0).transfers()).isEmpty();
+    }
+
+    @Test
+    void suggestsTransfersPerCurrencyAndSettlingOneLeavesTheOtherUntouched() throws Exception {
+        addEqualExpense("PLN", ann, 1000, ann, bob);
+        addEqualExpense("EUR", bob, 600, ann, bob);
+
+        mvc.perform(get("/groups/{id}/settlements/suggestions", group.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultCurrency").value("PLN"))
+                .andExpect(jsonPath("$.currencies.length()").value(2))
+                .andExpect(jsonPath("$.currencies[0].currency").value("PLN"))
+                .andExpect(jsonPath("$.currencies[0].transfers[0].paidBy").value(bob.getId().toString()))
+                .andExpect(jsonPath("$.currencies[0].transfers[0].amount").value(500))
+                .andExpect(jsonPath("$.currencies[1].currency").value("EUR"))
+                .andExpect(jsonPath("$.currencies[1].transfers[0].paidBy").value(ann.getId().toString()))
+                .andExpect(jsonPath("$.currencies[1].transfers[0].amount").value(300));
+
+        settlementService.create(group.getId(), new CreateSettlementRequest(ann.getId(), bob.getId(), 300L, "EUR", null));
+        em.flush();
+        em.clear();
+
+        mvc.perform(get("/groups/{id}/settlements/suggestions", group.getId()))
+                .andExpect(jsonPath("$.currencies[0].transfers.length()").value(1))
+                .andExpect(jsonPath("$.currencies[1].transfers.length()").value(0));
     }
 }

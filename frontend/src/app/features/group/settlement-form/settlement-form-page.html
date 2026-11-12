@@ -38,15 +38,25 @@
 
     <div class="settlement__row">
       <div class="settlement__field">
+        <label [attr.for]="'currency'">Currency</label>
+        <p-select
+          inputId="currency"
+          formControlName="currency"
+          [options]="currencyOptions"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="settlement__field">
         <label [attr.for]="'amount'">Amount</label>
         <p-inputnumber
           inputId="amount"
           formControlName="amount"
           mode="currency"
-          [currency]="currency"
+          [currency]="currency()"
           [locale]="locale"
-          [minFractionDigits]="digits"
-          [maxFractionDigits]="digits"
+          [minFractionDigits]="digits()"
+          [maxFractionDigits]="digits()"
         />
         @if (form.controls.amount.touched && form.controls.amount.invalid) {
           <small class="settlement__hint" role="alert">Enter an amount greater than zero.</small>

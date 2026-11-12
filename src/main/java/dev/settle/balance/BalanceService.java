@@ -1,6 +1,8 @@
 package dev.settle.balance;
 
+import dev.settle.balance.GroupBalancesResponse.CurrencyBalances;
 import dev.settle.balance.GroupBalancesResponse.MemberBalance;
+import dev.settle.common.Currencies;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
@@ -40,21 +42,31 @@ public class BalanceService {
         Group group = groups.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
 
-        Map<UUID, Long> netByUser = new HashMap<>();
-        balances.findNetBalancesByGroupId(groupId)
-                .forEach(b -> netByUser.put(b.getUserId(), b.getBalanceMinor()));
-
+        Map<String, Map<UUID, Long>> netByCurrency = new HashMap<>();
         Set<UUID> userIds = new HashSet<>(memberships.findUserIdsByGroupId(groupId));
-        userIds.addAll(netByUser.keySet());
+        for (MemberNetBalance b : balances.findNetBalancesByGroupId(groupId)) {
+            netByCurrency.computeIfAbsent(b.getCurrency(), c -> new HashMap<>())
+                    .put(b.getUserId(), b.getBalanceMinor());
+            userIds.add(b.getUserId());
+        }
         Map<UUID, String> names = users.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getDisplayName));
 
-        List<MemberBalance> result = userIds.stream()
+        List<CurrencyBalances> currencies = Currencies
+                .withDefaultFirst(netByCurrency.keySet(), group.getCurrency()).stream()
+                .map(currency -> new CurrencyBalances(currency,
+                        memberBalances(userIds, names, netByCurrency.getOrDefault(currency, Map.of()))))
+                .toList();
+
+        return new GroupBalancesResponse(group.getCurrency(), currencies);
+    }
+
+    private static List<MemberBalance> memberBalances(
+            Set<UUID> userIds, Map<UUID, String> names, Map<UUID, Long> netByUser) {
+        return userIds.stream()
                 .map(id -> new MemberBalance(id, names.get(id), netByUser.getOrDefault(id, 0L)))
                 .sorted(Comparator.comparingLong(MemberBalance::balance).reversed()
                         .thenComparing(MemberBalance::userId))
                 .toList();
-
-        return new GroupBalancesResponse(group.getCurrency(), result);
     }
 }

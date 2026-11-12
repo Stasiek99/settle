@@ -127,8 +127,10 @@ class SettlementServiceTest {
     }
 
     @Test
-    void rejectsACurrencyDifferentFromTheGroups() {
-        assertRejected(request(BOB, ANN, 100, "EUR"), "does not match the group currency");
+    void acceptsACurrencyDifferentFromTheGroups() {
+        SettlementResponse response = service.create(flat.getId(), request(BOB, ANN, 100, "eur"));
+
+        assertThat(response.currency()).isEqualTo("EUR");
     }
 
     @Test

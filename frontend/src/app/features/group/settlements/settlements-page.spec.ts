@@ -8,7 +8,7 @@ import {
 import { provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
-import { Page, Settlement, SettlementSuggestions } from '../../../core/models';
+import { Page, Settlement, SettlementSuggestions, SuggestedTransfer } from '../../../core/models';
 import { click, query, settle, text } from '../../../testing/dom';
 import { GroupStore } from '../group-store';
 import { SettlementsPage } from './settlements-page';
@@ -33,7 +33,11 @@ function page(content: Settlement[], overrides: Partial<Page<Settlement>> = {}):
   return { content, page: 0, size: 10, totalElements: content.length, totalPages: 1, ...overrides };
 }
 
-const NO_TRANSFERS: SettlementSuggestions = { currency: 'USD', transfers: [] };
+function usdTransfers(transfers: SuggestedTransfer[]): SettlementSuggestions {
+  return { defaultCurrency: 'USD', currencies: [{ currency: 'USD', transfers }] };
+}
+
+const NO_TRANSFERS = usdTransfers([]);
 
 describe('SettlementsPage', () => {
   let http: HttpTestingController;
@@ -88,7 +92,7 @@ describe('SettlementsPage', () => {
 
   it('proposes who should pay whom', async () => {
     const fixture = await render({
-      suggestions: { currency: 'USD', transfers: [{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }] },
+      suggestions: usdTransfers([{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }]),
     });
 
     const content = text(fixture);
@@ -109,12 +113,28 @@ describe('SettlementsPage', () => {
 
   it('lets a suggested transfer be recorded with one click', async () => {
     const fixture = await render({
-      suggestions: { currency: 'USD', transfers: [{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }] },
+      suggestions: usdTransfers([{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }]),
     });
 
     const link = query<HTMLAnchorElement>(fixture, 'section a[href^="/new?"]');
     expect(link?.textContent).toContain('Record');
-    expect(link?.getAttribute('href')).toBe('/new?from=u2&to=u1&amount=2500');
+    expect(link?.getAttribute('href')).toBe('/new?from=u2&to=u1&amount=2500&currency=USD');
+  });
+
+  it('lists transfers per currency and records each in its own currency', async () => {
+    const fixture = await render({
+      suggestions: {
+        defaultCurrency: 'USD',
+        currencies: [
+          { currency: 'USD', transfers: [{ paidBy: 'u2', paidTo: 'u1', amount: 2500 }] },
+          { currency: 'EUR', transfers: [{ paidBy: 'u1', paidTo: 'u2', amount: 1000 }] },
+        ],
+      },
+    });
+
+    expect(text(fixture)).toContain('€10.00');
+    const links = fixture.nativeElement.querySelectorAll('section a[href^="/new?"]');
+    expect(links[1].getAttribute('href')).toBe('/new?from=u1&to=u2&amount=1000&currency=EUR');
   });
 
   it('says so when nobody owes anything', async () => {

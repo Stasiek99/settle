@@ -53,10 +53,6 @@ public class SettlementService {
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
 
         Currency currency = Currencies.parse(request.currency());
-        if (!currency.getCurrencyCode().equals(group.getCurrency())) {
-            throw new InvalidRequestException("Settlement currency %s does not match the group currency %s"
-                    .formatted(currency.getCurrencyCode(), group.getCurrency()));
-        }
         if (request.paidBy().equals(request.paidTo())) {
             throw new InvalidRequestException("Payer and receiver must be different people");
         }

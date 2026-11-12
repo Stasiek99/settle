@@ -37,15 +37,28 @@
 
       <div class="expense__row">
         <div class="expense__field">
+          <label [attr.for]="'currency'">Currency</label>
+          <p-select
+            inputId="currency"
+            formControlName="currency"
+            [options]="currencyOptions"
+            appendTo="body"
+          />
+          @if (editing()) {
+            <small class="expense__hint">The currency of an expense cannot be changed.</small>
+          }
+        </div>
+
+        <div class="expense__field">
           <label [attr.for]="'amount'">Amount</label>
           <p-inputnumber
             inputId="amount"
             formControlName="amount"
             mode="currency"
-            [currency]="currency"
+            [currency]="currency()"
             [locale]="locale"
-            [minFractionDigits]="digits"
-            [maxFractionDigits]="digits"
+            [minFractionDigits]="digits()"
+            [maxFractionDigits]="digits()"
           />
           @if (form.controls.amount.touched && form.controls.amount.invalid) {
             <small class="expense__hint" role="alert">Enter an amount greater than zero.</small>
@@ -126,10 +139,10 @@
                     class="expense__share"
                     formControlName="amount"
                     mode="currency"
-                    [currency]="currency"
+                    [currency]="currency()"
                     [locale]="locale"
-                    [minFractionDigits]="digits"
-                    [maxFractionDigits]="digits"
+                    [minFractionDigits]="digits()"
+                    [maxFractionDigits]="digits()"
                     [ariaLabel]="'Amount for ' + store.nameOf(row.controls.userId.value)"
                   />
                 }

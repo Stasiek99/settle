@@ -33,11 +33,20 @@ class BalanceServiceTest {
     private static final UUID BOB = new UUID(0, 2);
     private static final UUID CID = new UUID(0, 3);
 
-    private record Net(UUID userId, long balanceMinor) implements MemberNetBalance {
+    private record Net(UUID userId, String currency, long balanceMinor) implements MemberNetBalance {
+
+        Net(UUID userId, long balanceMinor) {
+            this(userId, "PLN", balanceMinor);
+        }
 
         @Override
         public UUID getUserId() {
             return userId;
+        }
+
+        @Override
+        public String getCurrency() {
+            return currency;
         }
 
         @Override
@@ -81,7 +90,7 @@ class BalanceServiceTest {
 
         GroupBalancesResponse response = service.forGroup(flat.getId());
 
-        assertThat(response.balances()).containsExactly(
+        assertThat(response.currencies().get(0).balances()).containsExactly(
                 new MemberBalance(ANN, "Ann", 500),
                 new MemberBalance(CID, "Cid", 0),
                 new MemberBalance(BOB, "Bob", -500));
@@ -95,7 +104,7 @@ class BalanceServiceTest {
 
         GroupBalancesResponse response = service.forGroup(flat.getId());
 
-        assertThat(response.balances()).extracting(MemberBalance::userId).containsExactly(ANN, BOB, CID);
+        assertThat(response.currencies().get(0).balances()).extracting(MemberBalance::userId).containsExactly(ANN, BOB, CID);
     }
 
     @Test
@@ -105,7 +114,39 @@ class BalanceServiceTest {
 
         GroupBalancesResponse response = service.forGroup(flat.getId());
 
-        assertThat(response.balances()).extracting(MemberBalance::userId).containsExactly(ANN, BOB);
+        assertThat(response.currencies().get(0).balances()).extracting(MemberBalance::userId).containsExactly(ANN, BOB);
+    }
+
+    @Test
+    void keepsEachCurrencyInItsOwnSectionWithTheGroupCurrencyFirst() {
+        when(memberships.findUserIdsByGroupId(flat.getId())).thenReturn(Set.of(ANN, BOB));
+        when(balances.findNetBalancesByGroupId(flat.getId())).thenReturn(List.of(
+                new Net(ANN, "USD", 700), new Net(BOB, "USD", -700),
+                new Net(ANN, "EUR", -200), new Net(BOB, "EUR", 200),
+                new Net(ANN, "PLN", 500), new Net(BOB, "PLN", -500)));
+
+        GroupBalancesResponse response = service.forGroup(flat.getId());
+
+        assertThat(response.currencies()).extracting(GroupBalancesResponse.CurrencyBalances::currency)
+                .containsExactly("PLN", "EUR", "USD");
+        assertThat(response.currencies().get(1).balances()).containsExactly(
+                new MemberBalance(BOB, "Bob", 200), new MemberBalance(ANN, "Ann", -200));
+        assertThat(response.currencies().get(2).balances()).containsExactly(
+                new MemberBalance(ANN, "Ann", 700), new MemberBalance(BOB, "Bob", -700));
+    }
+
+    @Test
+    void alwaysIncludesTheGroupCurrencyEvenWithoutActivityInIt() {
+        when(memberships.findUserIdsByGroupId(flat.getId())).thenReturn(Set.of(ANN, BOB));
+        when(balances.findNetBalancesByGroupId(flat.getId()))
+                .thenReturn(List.of(new Net(ANN, "EUR", 100), new Net(BOB, "EUR", -100)));
+
+        GroupBalancesResponse response = service.forGroup(flat.getId());
+
+        assertThat(response.currencies()).extracting(GroupBalancesResponse.CurrencyBalances::currency)
+                .containsExactly("PLN", "EUR");
+        assertThat(response.currencies().get(0).balances()).extracting(MemberBalance::balance)
+                .containsOnly(0L);
     }
 
     @Test
@@ -113,7 +154,7 @@ class BalanceServiceTest {
         when(memberships.findUserIdsByGroupId(flat.getId())).thenReturn(Set.of());
         when(balances.findNetBalancesByGroupId(flat.getId())).thenReturn(List.of());
 
-        assertThat(service.forGroup(flat.getId()).currency()).isEqualTo("PLN");
+        assertThat(service.forGroup(flat.getId()).defaultCurrency()).isEqualTo("PLN");
     }
 
     @Test
