@@ -6,86 +6,155 @@ import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { authInterceptor } from './auth.interceptor';
 
+const UNAUTHORIZED = { status: 401, statusText: 'Unauthorized' };
+const NO_CONTENT = { status: 204, statusText: 'No Content' };
+
 describe('authInterceptor', () => {
   let http: HttpTestingController;
   let client: HttpClient;
-  let auth: { token: ReturnType<typeof vi.fn>; endSession: ReturnType<typeof vi.fn> };
   let navigate: ReturnType<typeof vi.fn>;
+  let auth: AuthService;
 
-  function setup(token: string | null): void {
-    auth = { token: vi.fn().mockReturnValue(token), endSession: vi.fn() };
+  beforeEach(() => {
+    document.cookie = 'XSRF-TOKEN=csrf-value; path=/';
     navigate = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: auth },
         { provide: Router, useValue: { navigate, url: '/groups?x=1' } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
     client = TestBed.inject(HttpClient);
-  }
+    auth = TestBed.inject(AuthService);
+  });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    document.cookie = 'XSRF-TOKEN=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  });
 
-  it('adds the bearer token to API calls', () => {
-    setup('jwt-1');
-
+  it('adds no credentials of its own: the browser sends the session cookies', () => {
     client.get('/api/groups').subscribe();
 
-    expect(http.expectOne('/api/groups').request.headers.get('Authorization')).toBe('Bearer jwt-1');
+    const request = http.expectOne('/api/groups');
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    request.flush([]);
   });
 
-  it('does not send the token to the auth endpoints', () => {
-    setup('jwt-1');
+  it('lets successful calls and other errors through untouched', () => {
+    const errors: number[] = [];
+    client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
 
-    client.post('/api/auth/login', {}).subscribe();
+    http.expectOne('/api/groups').flush(null, { status: 500, statusText: 'Server Error' });
 
-    expect(http.expectOne('/api/auth/login').request.headers.has('Authorization')).toBe(false);
+    expect(errors).toEqual([500]);
+    http.expectNone('/api/auth/refresh');
+    expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('does not send the token to other origins or paths', () => {
-    setup('jwt-1');
+  it('refreshes the session after a 401 and repeats the call once', () => {
+    let result: unknown;
+    client.get('/api/groups').subscribe((value) => (result = value));
 
-    client.get('https://example.com/api/groups').subscribe();
-    client.get('/assets/logo.svg').subscribe();
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
+    http.expectOne('/api/groups').flush(['g1']);
 
-    expect(
-      http.expectOne('https://example.com/api/groups').request.headers.has('Authorization'),
-    ).toBe(false);
-    expect(http.expectOne('/assets/logo.svg').request.headers.has('Authorization')).toBe(false);
+    expect(result).toEqual(['g1']);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('sends no header when signed out', () => {
-    setup(null);
+  it('repeats a write with its original body', () => {
+    client.post('/api/groups', { name: 'Trip' }).subscribe();
 
-    client.get('/api/groups').subscribe();
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
+    const retry = http.expectOne('/api/groups');
 
-    expect(http.expectOne('/api/groups').request.headers.has('Authorization')).toBe(false);
+    expect(retry.request.method).toBe('POST');
+    expect(retry.request.body).toEqual({ name: 'Trip' });
+    retry.flush({});
   });
 
-  it('ends the session and redirects to the login page on 401', () => {
-    setup('jwt-1');
-    let failed = false;
+  it('shares a single refresh between calls that were refused at the same time', () => {
+    const results: unknown[] = [];
+    client.get('/api/groups').subscribe((v) => results.push(v));
+    client.get('/api/users/me').subscribe((v) => results.push(v));
 
-    client.get('/api/groups').subscribe({ error: () => (failed = true) });
-    http.expectOne('/api/groups').flush(null, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/users/me').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
+    http.expectOne('/api/groups').flush('groups');
+    http.expectOne('/api/users/me').flush('me');
 
-    expect(failed).toBe(true);
-    expect(auth.endSession).toHaveBeenCalled();
+    expect(results.sort()).toEqual(['groups', 'me']);
+  });
+
+  it('ends the session and goes to the login page when the repeated call is refused too', () => {
+    const errors: number[] = [];
+    client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
+
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+
+    expect(errors).toEqual([401]);
+    expect(auth.isAuthenticated()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], {
       queryParams: { returnUrl: '/groups?x=1' },
     });
   });
 
-  it('leaves the session alone on other errors', () => {
-    setup('jwt-1');
+  it('still tries once more when the refresh failed but another tab renewed the cookies', () => {
+    let result: unknown;
+    client.get('/api/groups').subscribe((value) => (result = value));
 
-    client.get('/api/groups').subscribe({ error: () => undefined });
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/groups').flush(['g1']);
+
+    expect(result).toEqual(['g1']);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('does not log the user out because of an unrelated error on the repeated call', () => {
+    const errors: number[] = [];
+    client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
+
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, NO_CONTENT);
     http.expectOne('/api/groups').flush(null, { status: 500, statusText: 'Server Error' });
 
-    expect(auth.endSession).not.toHaveBeenCalled();
+    expect(errors).toEqual([500]);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('never tries to refresh because of the auth endpoints themselves', () => {
+    client.post('/api/auth/login', {}).subscribe({ error: () => undefined });
+
+    http.expectOne('/api/auth/login').flush(null, UNAUTHORIZED);
+
+    http.expectNone('/api/auth/refresh');
+  });
+
+  it('leaves other origins and paths alone', () => {
+    client.get('https://example.com/api/groups').subscribe({ error: () => undefined });
+    client.get('/assets/logo.svg').subscribe({ error: () => undefined });
+
+    http.expectOne('https://example.com/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/assets/logo.svg').flush(null, UNAUTHORIZED);
+
+    http.expectNone('/api/auth/refresh');
+  });
+
+  it('lets a call that handles the session itself fail without any refresh or redirect', () => {
+    auth.restore().subscribe();
+
+    http.expectOne('/api/users/me').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, UNAUTHORIZED);
+
     expect(navigate).not.toHaveBeenCalled();
   });
 });

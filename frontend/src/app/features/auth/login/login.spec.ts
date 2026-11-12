@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 
+import { setCsrfCookie } from '../../../testing/session';
 import { query, setValue, settle, submit, text } from '../../../testing/dom';
 import { Login } from './login';
 
@@ -12,7 +13,7 @@ describe('Login', () => {
   let navigateByUrl: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    sessionStorage.clear();
+    setCsrfCookie(true);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -25,7 +26,10 @@ describe('Login', () => {
     navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    setCsrfCookie(false);
+  });
 
   function render(returnUrl?: string) {
     const fixture = TestBed.createComponent(Login);
@@ -44,9 +48,6 @@ describe('Login', () => {
   function succeedLogin(): void {
     http
       .expectOne('/api/auth/login')
-      .flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http
-      .expectOne('/api/users/me')
       .flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
   }
 
@@ -80,10 +81,7 @@ describe('Login', () => {
 
     const request = http.expectOne('/api/auth/login');
     expect(request.request.body).toEqual({ email: 'ann@example.com', password: ' pass word ' });
-    request.flush({ accessToken: 'jwt', tokenType: 'Bearer', expiresIn: 3600 });
-    http
-      .expectOne('/api/users/me')
-      .flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
+    request.flush({ id: '1', email: 'a@b.c', displayName: 'Ann', createdAt: '' });
   });
 
   it('returns to the page the user wanted', async () => {

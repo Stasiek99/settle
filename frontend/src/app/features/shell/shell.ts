@@ -15,12 +15,6 @@ import { AuthService } from '../../core/auth/auth.service';
 export class Shell {
   protected readonly auth = inject(AuthService);
 
-  constructor() {
-    if (!this.auth.user()) {
-      this.auth.loadUser().subscribe({ error: () => undefined });
-    }
-  }
-
   protected logout(): void {
     this.auth.logout();
   }

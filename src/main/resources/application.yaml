@@ -24,7 +24,15 @@ settle:
     jwt:
       secret: ${JWT_SECRET}
       issuer: settle
-      expiration: 1h
+      expiration: 15m
+    session:
+      refresh-expiration: 7d
+      # A refresh token that was already rotated is tolerated for this long (two tabs refreshing at once).
+      refresh-reuse-grace: 10s
+      # Paths as the browser sees them: the SPA reaches the API under /api.
+      api-path: /api
+      auth-path: /api/auth
+      secure-cookies: true
 
 management:
   endpoints:

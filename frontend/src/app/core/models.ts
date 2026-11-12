@@ -1,9 +1,3 @@
-export interface TokenResponse {
-  accessToken: string;
-  tokenType: string;
-  expiresIn: number;
-}
-
 export interface User {
   id: string;
   email: string;

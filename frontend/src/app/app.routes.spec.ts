@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
+import { restoreSession } from './testing/session';
 
 describe('routes', () => {
   function configure(): void {
@@ -19,13 +20,6 @@ describe('routes', () => {
     });
   }
 
-  function signIn(): void {
-    sessionStorage.setItem(
-      'settle.session',
-      JSON.stringify({ token: 'jwt', expiresAt: Date.now() + 3_600_000 }),
-    );
-  }
-
   function answerPendingRequests(): void {
     const http = TestBed.inject(HttpTestingController);
     http
@@ -35,8 +29,6 @@ describe('routes', () => {
       .match((r) => r.url === '/api/groups')
       .forEach((r) => r.flush({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 }));
   }
-
-  beforeEach(() => sessionStorage.clear());
 
   it('shows the landing page to a guest at the root', async () => {
     configure();
@@ -51,8 +43,8 @@ describe('routes', () => {
   });
 
   it('sends a signed-in user from the root to their groups', async () => {
-    signIn();
     configure();
+    restoreSession(TestBed.inject(HttpTestingController));
     const harness = await RouterTestingHarness.create();
 
     await harness.navigateByUrl('/');

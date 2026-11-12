@@ -7,6 +7,7 @@ import { providePrimeNG } from 'primeng/config';
 
 import { routes } from '../../app.routes';
 import { query, text } from '../../testing/dom';
+import { restoreSession } from '../../testing/session';
 
 const GROUP = {
   id: 'g1',
@@ -27,10 +28,6 @@ describe('group page routing', () => {
   let harness: RouterTestingHarness;
 
   beforeEach(async () => {
-    sessionStorage.setItem(
-      'settle.session',
-      JSON.stringify({ token: 'jwt', expiresAt: Date.now() + 3_600_000 }),
-    );
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes, withComponentInputBinding()),
@@ -40,10 +37,9 @@ describe('group page routing', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    restoreSession(http);
     harness = await RouterTestingHarness.create();
   });
-
-  afterEach(() => sessionStorage.clear());
 
   async function flushAll(overrides: Record<string, unknown> = {}): Promise<void> {
     const answers: Record<string, unknown> = {
