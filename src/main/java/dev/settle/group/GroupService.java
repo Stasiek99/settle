@@ -1,5 +1,6 @@
 package dev.settle.group;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.ConflictException;
 import dev.settle.common.PageQuery;
 import dev.settle.common.PageResponse;
@@ -28,11 +29,14 @@ public class GroupService {
     private final GroupRepository groups;
     private final MembershipRepository memberships;
     private final UserRepository users;
+    private final GroupCacheEvictor cacheEvictor;
 
-    public GroupService(GroupRepository groups, MembershipRepository memberships, UserRepository users) {
+    public GroupService(GroupRepository groups, MembershipRepository memberships, UserRepository users,
+                        GroupCacheEvictor cacheEvictor) {
         this.groups = groups;
         this.memberships = memberships;
         this.users = users;
+        this.cacheEvictor = cacheEvictor;
     }
 
     @Transactional
@@ -75,6 +79,7 @@ public class GroupService {
             throw new ConflictException("User is already a member of this group");
         }
         Membership saved = memberships.save(new Membership(group, user, MembershipRole.MEMBER));
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("member.id", user.getId()).log("Member added");
         return MembershipResponse.from(saved);
     }

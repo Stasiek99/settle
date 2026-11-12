@@ -92,16 +92,27 @@ class BalanceApiTest {
         return response;
     }
 
+    private void addEqualExpense(String currency, User payer, long amount, User... participants) {
+        List<Participant> list = new ArrayList<>();
+        for (User participant : participants) {
+            list.add(new Participant(participant.getId(), null, null));
+        }
+        expenseService.create(group.getId(),
+                new CreateExpenseRequest("expense", amount, currency, payer.getId(), SplitType.EQUAL, null, list));
+        em.flush();
+        em.clear();
+    }
+
     private static String balanceOf(UUID user) {
-        return "$.balances[?(@.userId == '%s')].balance".formatted(user);
+        return "$.currencies[0].balances[?(@.userId == '%s')].balance".formatted(user);
     }
 
     @Test
     void newGroupHasZeroBalancesForEveryMember() throws Exception {
         mvc.perform(get("/groups/{id}/balances", group.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.currency").value("PLN"))
-                .andExpect(jsonPath("$.balances.length()").value(3))
+                .andExpect(jsonPath("$.defaultCurrency").value("PLN"))
+                .andExpect(jsonPath("$.currencies[0].balances.length()").value(3))
                 .andExpect(jsonPath(balanceOf(ann.getId())).value(contains(0)))
                 .andExpect(jsonPath(balanceOf(bob.getId())).value(contains(0)))
                 .andExpect(jsonPath(balanceOf(cid.getId())).value(contains(0)));
@@ -120,14 +131,34 @@ class BalanceApiTest {
     }
 
     @Test
+    void keepsBalancesOfDifferentCurrenciesApart() throws Exception {
+        addEqualExpense("PLN", ann, 1000, ann, bob);
+        addEqualExpense("EUR", bob, 400, ann, bob);
+        addEqualExpense("EUR", bob, 200, bob, cid);
+
+        String eur = "$.currencies[1].balances[?(@.userId == '%s')].balance";
+        mvc.perform(get("/groups/{id}/balances", group.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencies.length()").value(2))
+                .andExpect(jsonPath("$.currencies[0].currency").value("PLN"))
+                .andExpect(jsonPath(balanceOf(ann.getId())).value(contains(500)))
+                .andExpect(jsonPath(balanceOf(bob.getId())).value(contains(-500)))
+                .andExpect(jsonPath(balanceOf(cid.getId())).value(contains(0)))
+                .andExpect(jsonPath("$.currencies[1].currency").value("EUR"))
+                .andExpect(jsonPath(eur.formatted(ann.getId())).value(contains(-200)))
+                .andExpect(jsonPath(eur.formatted(bob.getId())).value(contains(300)))
+                .andExpect(jsonPath(eur.formatted(cid.getId())).value(contains(-100)));
+    }
+
+    @Test
     void listsCreditorsBeforeDebtors() throws Exception {
         addEqualExpense(ann, 3000, ann, bob, cid);
         addEqualExpense(bob, 1000, ann, bob);
 
         mvc.perform(get("/groups/{id}/balances", group.getId()))
-                .andExpect(jsonPath("$.balances[0].displayName").value("Ann"))
-                .andExpect(jsonPath("$.balances[1].displayName").value("Bob"))
-                .andExpect(jsonPath("$.balances[2].displayName").value("Cid"));
+                .andExpect(jsonPath("$.currencies[0].balances[0].displayName").value("Ann"))
+                .andExpect(jsonPath("$.currencies[0].balances[1].displayName").value("Bob"))
+                .andExpect(jsonPath("$.currencies[0].balances[2].displayName").value("Cid"));
     }
 
     @Test

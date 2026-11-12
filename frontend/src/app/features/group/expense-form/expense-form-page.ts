@@ -36,7 +36,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GroupsApi } from '../../../core/groups/groups.api';
 import { Expense, SplitType } from '../../../core/models';
-import { formatMoney, minorUnitDigits } from '../../../core/money';
+import { CURRENCIES, formatMoney, minorUnitDigits } from '../../../core/money';
 import { problemMessage } from '../../../core/problem';
 import { GroupStore } from '../group-store';
 import {
@@ -102,8 +102,9 @@ export class ExpenseFormPage {
     return group;
   })();
 
-  protected readonly currency = this.group.currency;
-  protected readonly digits = minorUnitDigits(this.group.currency);
+  protected readonly currencyOptions = [...new Set([this.group.currency, ...CURRENCIES])];
+  protected readonly currency = signal(this.group.currency);
+  protected readonly digits = computed(() => minorUnitDigits(this.currency()));
   protected readonly members = this.store.members();
   protected readonly splitOptions: { label: string; value: SplitType }[] = [
     { label: 'Equal', value: 'EQUAL' },
@@ -125,9 +126,21 @@ export class ExpenseFormPage {
 
   private readonly splitValidator: ValidatorFn = (control) => {
     const value = control.value as SplitValue;
-    const total = value.amount === null ? null : toMinor(value.amount, this.digits);
-    const problem = splitProblem(value.splitType, value.participants, total, this.digits);
+    const total = value.amount === null ? null : toMinor(value.amount, this.digits());
+    const problem = splitProblem(value.splitType, value.participants, total, this.digits());
     return problem ? { split: problem } : null;
+  };
+
+  private readonly amountInRange: ValidatorFn = (control) => {
+    const value = control.value as number | null;
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const scale = 10 ** this.digits();
+    if (value < 1 / scale) {
+      return { min: true };
+    }
+    return value > MAX_AMOUNT_MINOR / scale ? { max: true } : null;
   };
 
   protected readonly form = new FormGroup(
@@ -136,11 +149,11 @@ export class ExpenseFormPage {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(200)],
       }),
-      amount: new FormControl<number | null>(null, [
-        Validators.required,
-        Validators.min(1 / 10 ** this.digits),
-        Validators.max(MAX_AMOUNT_MINOR / 10 ** this.digits),
-      ]),
+      currency: new FormControl(this.group.currency, {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      amount: new FormControl<number | null>(null, [Validators.required, this.amountInRange]),
       expenseDate: new FormControl<Date | null>(new Date(), [Validators.required]),
       paidBy: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
       splitType: new FormControl<SplitType>('EQUAL', { nonNullable: true }),
@@ -173,7 +186,7 @@ export class ExpenseFormPage {
     const people = value.participants ?? [];
     const type = value.splitType;
     if (type === 'PERCENTAGE') {
-      const basisPoints = allocated(type, people, this.digits);
+      const basisPoints = allocated(type, people, this.digits());
       return {
         text: `Total: ${basisPoints / 100}% of 100%`,
         ok: basisPoints === FULL_BASIS_POINTS,
@@ -183,9 +196,10 @@ export class ExpenseFormPage {
       if (value.amount === null || value.amount === undefined) {
         return { text: 'Enter the total amount first.', ok: false };
       }
-      const remaining = toMinor(value.amount, this.digits) - allocated(type, people, this.digits);
+      const remaining =
+        toMinor(value.amount, this.digits()) - allocated(type, people, this.digits());
       return {
-        text: `Remaining: ${formatMoney(remaining, this.currency, this.locale)}`,
+        text: `Remaining: ${formatMoney(remaining, this.currency(), this.locale)}`,
         ok: remaining === 0,
       };
     }
@@ -216,6 +230,13 @@ export class ExpenseFormPage {
         }
       });
     });
+
+    this.form.controls.currency.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((code) => {
+        this.currency.set(code);
+        this.form.controls.amount.updateValueAndValidity();
+      });
 
     this.form.controls.splitType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -265,6 +286,8 @@ export class ExpenseFormPage {
       expense.splits.forEach((split, index) => percentByUser.set(split.userId, percents[index]));
     }
 
+    this.form.controls.currency.setValue(expense.currency);
+    this.form.controls.currency.disable({ emitEvent: false });
     this.form.controls.splitType.setValue(expense.splitType, { emitEvent: false });
     this.participants.controls.forEach((row) => {
       const userId = row.controls.userId.value;
@@ -272,12 +295,12 @@ export class ExpenseFormPage {
       row.patchValue({
         included: share !== undefined,
         percent: percentByUser.get(userId) ?? null,
-        amount: share === undefined ? null : toMajor(share, this.digits),
+        amount: share === undefined ? null : toMajor(share, this.digits()),
       });
     });
     this.form.patchValue({
       description: expense.description,
-      amount: toMajor(expense.amount, this.digits),
+      amount: toMajor(expense.amount, this.digits()),
       expenseDate: parseDate(expense.expenseDate),
       paidBy: expense.paidBy,
     });
@@ -296,8 +319,8 @@ export class ExpenseFormPage {
       if (amount === null) {
         return;
       }
-      evenAmounts(toMinor(amount, this.digits), rows.length, this.digits).forEach((share, index) =>
-        rows[index].controls.amount.setValue(share),
+      evenAmounts(toMinor(amount, this.digits()), rows.length, this.digits()).forEach(
+        (share, index) => rows[index].controls.amount.setValue(share),
       );
     }
   }
@@ -313,13 +336,13 @@ export class ExpenseFormPage {
       {
         description: raw.description,
         amount: raw.amount ?? 0,
-        currency: this.currency,
+        currency: raw.currency,
         paidBy: raw.paidBy,
         splitType: raw.splitType,
         date: raw.expenseDate,
         participants: raw.participants,
       },
-      this.digits,
+      this.digits(),
     );
     this.saving.set(true);
     this.error.set(null);

@@ -13,27 +13,36 @@
     }
   </div>
 } @else if (balances.value(); as result) {
-  @if (result.balances.length === 0) {
-    <p-card>
-      <p class="section__empty">No members yet.</p>
-    </p-card>
-  } @else {
-    <ul class="section__list">
-      @for (entry of result.balances; track entry.userId) {
-        <li>
-          <p-card>
-            <div class="section__item">
-              <h2>{{ entry.displayName }}</h2>
-              <div class="section__side">
-                <p-tag [severity]="severity(entry)" [value]="label(entry)" />
-                @if (entry.balance !== 0) {
-                  <strong>{{ absolute(entry) | money: result.currency }}</strong>
-                }
-              </div>
-            </div>
-          </p-card>
-        </li>
+  @for (section of result.currencies; track section.currency) {
+    <section [attr.aria-labelledby]="'balances-' + section.currency">
+      @if (result.currencies.length > 1) {
+        <h2 [id]="'balances-' + section.currency" class="section__heading">
+          {{ section.currency }}
+        </h2>
       }
-    </ul>
+      @if (section.balances.length === 0) {
+        <p-card>
+          <p class="section__empty">No members yet.</p>
+        </p-card>
+      } @else {
+        <ul class="section__list">
+          @for (entry of section.balances; track entry.userId) {
+            <li>
+              <p-card>
+                <div class="section__item">
+                  <h3>{{ entry.displayName }}</h3>
+                  <div class="section__side">
+                    <p-tag [severity]="severity(entry)" [value]="label(entry)" />
+                    @if (entry.balance !== 0) {
+                      <strong>{{ absolute(entry) | money: section.currency }}</strong>
+                    }
+                  </div>
+                </div>
+              </p-card>
+            </li>
+          }
+        </ul>
+      }
+    </section>
   }
 }

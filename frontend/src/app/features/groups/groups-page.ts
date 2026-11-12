@@ -15,10 +15,9 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 
 import { GroupsApi } from '../../core/groups/groups.api';
+import { CURRENCIES } from '../../core/money';
 import { createPager } from '../../core/pager';
 import { problemMessage } from '../../core/problem';
-
-export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CHF', 'CZK'];
 
 @Component({
   selector: 'app-groups-page',

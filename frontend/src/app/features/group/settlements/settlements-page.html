@@ -16,41 +16,47 @@
   } @else if (suggestions.loading()) {
     <p-skeleton height="4rem" />
   } @else if (suggestions.value(); as result) {
-    @if (result.transfers.length === 0) {
-      <p-card>
-        <p class="section__empty">Everyone is settled up.</p>
-      </p-card>
-    } @else {
-      <ul class="section__list">
-        @for (transfer of result.transfers; track $index) {
-          <li>
-            <p-card>
-              <div class="section__item">
-                <span>
-                  <strong>{{ store.nameOf(transfer.paidBy) }}</strong> pays
-                  <strong>{{ store.nameOf(transfer.paidTo) }}</strong>
-                </span>
-                <span class="section__inline">
-                  <strong>{{ transfer.amount | money: result.currency }}</strong>
-                  <a
-                    pButton
-                    routerLink="new"
-                    label="Record"
-                    severity="secondary"
-                    [text]="true"
-                    size="small"
-                    [queryParams]="{
-                      from: transfer.paidBy,
-                      to: transfer.paidTo,
-                      amount: transfer.amount,
-                    }"
-                  ></a>
-                </span>
-              </div>
-            </p-card>
-          </li>
-        }
-      </ul>
+    @for (section of result.currencies; track section.currency) {
+      @if (result.currencies.length > 1) {
+        <h3 class="section__heading">{{ section.currency }}</h3>
+      }
+      @if (section.transfers.length === 0) {
+        <p-card>
+          <p class="section__empty">Everyone is settled up.</p>
+        </p-card>
+      } @else {
+        <ul class="section__list">
+          @for (transfer of section.transfers; track $index) {
+            <li>
+              <p-card>
+                <div class="section__item">
+                  <span>
+                    <strong>{{ store.nameOf(transfer.paidBy) }}</strong> pays
+                    <strong>{{ store.nameOf(transfer.paidTo) }}</strong>
+                  </span>
+                  <span class="section__inline">
+                    <strong>{{ transfer.amount | money: section.currency }}</strong>
+                    <a
+                      pButton
+                      routerLink="new"
+                      label="Record"
+                      severity="secondary"
+                      [text]="true"
+                      size="small"
+                      [queryParams]="{
+                        from: transfer.paidBy,
+                        to: transfer.paidTo,
+                        amount: transfer.amount,
+                        currency: section.currency,
+                      }"
+                    ></a>
+                  </span>
+                </div>
+              </p-card>
+            </li>
+          }
+        </ul>
+      }
     }
   }
 </section>

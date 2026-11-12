@@ -31,6 +31,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -289,6 +290,21 @@ class ExpenseModificationApiTest {
     }
 
     @Test
+    void theCurrencyOfAnExistingExpenseCannotBeChanged() throws Exception {
+        UUID expenseId = create(equal("Pizza", 1000, id(1), id(0), id(1)));
+        em.flush();
+        em.clear();
+        actAs(1);
+
+        update(expenseId, "\"0\"", """
+                {"description":"Pizza","amount":1000,"currency":"EUR","paidBy":"%s",
+                 "splitType":"EQUAL","participants":[{"userId":"%s"}]}
+                """.formatted(id(1), id(0)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("cannot be changed")));
+    }
+
+    @Test
     void editingOnlyTheDescriptionKeepsWhoPaidTheOddGrosz() throws Exception {
         UUID[] all = {id(0), id(1), id(2)};
         UUID first = create(equal("first", 1000, id(0), all));
@@ -343,8 +359,8 @@ class ExpenseModificationApiTest {
         update(expenseId, "\"0\"", equal("Taxi", 3000, id(0), id(0), id(1))).andExpect(status().isOk());
 
         send(mvc.perform(get("/groups/{g}/balances", group.getId())))
-                .andExpect(jsonPath("$.balances[?(@.userId == '%s')].balance".formatted(id(0))).value(contains(1500)))
-                .andExpect(jsonPath("$.balances[?(@.userId == '%s')].balance".formatted(id(1))).value(contains(-1500)));
+                .andExpect(jsonPath("$.currencies[0].balances[?(@.userId == '%s')].balance".formatted(id(0))).value(contains(1500)))
+                .andExpect(jsonPath("$.currencies[0].balances[?(@.userId == '%s')].balance".formatted(id(1))).value(contains(-1500)));
     }
 
     @Test
@@ -358,7 +374,7 @@ class ExpenseModificationApiTest {
         send(mvc.perform(get("/groups/{g}/expenses", group.getId())))
                 .andExpect(jsonPath("$.totalElements").value(0));
         send(mvc.perform(get("/groups/{g}/balances", group.getId())))
-                .andExpect(jsonPath("$.balances[*].balance").value(contains(0, 0, 0)));
+                .andExpect(jsonPath("$.currencies[0].balances[*].balance").value(contains(0, 0, 0)));
         assertThat(expenses.findById(expenseId)).isEmpty();
         assertThat(em.createQuery("select count(s) from ExpenseSplit s", Long.class).getSingleResult()).isZero();
     }

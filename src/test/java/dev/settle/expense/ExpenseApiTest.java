@@ -237,12 +237,12 @@ class ExpenseApiTest {
     }
 
     @Test
-    void rejectsACurrencyThatDiffersFromTheGroup() throws Exception {
+    void acceptsACurrencyThatDiffersFromTheGroup() throws Exception {
         String json = equalExpense("X", 1000, id(0), id(0), id(1)).replace("\"PLN\"", "\"EUR\"");
 
         postExpense(group.getId(), json)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(containsString("does not match")));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("EUR"));
     }
 
     @Test

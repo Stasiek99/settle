@@ -1,10 +1,16 @@
 package dev.settle.settlement;
 
 import dev.settle.balance.BalanceRepository;
+import dev.settle.balance.MemberNetBalance;
+import dev.settle.cache.CacheNames;
+import dev.settle.common.Currencies;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.Money;
 import dev.settle.group.Group;
 import dev.settle.group.GroupRepository;
+import dev.settle.settlement.SettlementSuggestionsResponse.CurrencyTransfers;
+import dev.settle.settlement.SettlementSuggestionsResponse.Transfer;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,18 +32,29 @@ public class SettlementSuggestionService {
         this.balances = balances;
     }
 
+    @Cacheable(cacheNames = CacheNames.SUGGESTIONS, key = "#groupId")
     public SettlementSuggestionsResponse forGroup(UUID groupId) {
         Group group = groups.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
-        Currency currency = Currency.getInstance(group.getCurrency());
 
-        Map<UUID, Money> net = new HashMap<>();
-        balances.findNetBalancesByGroupId(groupId)
-                .forEach(b -> net.put(b.getUserId(), Money.ofMinor(b.getBalanceMinor(), currency)));
+        Map<String, Map<UUID, Money>> netByCurrency = new HashMap<>();
+        for (MemberNetBalance b : balances.findNetBalancesByGroupId(groupId)) {
+            Currency currency = Currency.getInstance(b.getCurrency());
+            netByCurrency.computeIfAbsent(b.getCurrency(), c -> new HashMap<>())
+                    .put(b.getUserId(), Money.ofMinor(b.getBalanceMinor(), currency));
+        }
 
-        List<SettlementSuggestionsResponse.Transfer> transfers = DebtSimplifier.simplify(net).stream()
-                .map(t -> new SettlementSuggestionsResponse.Transfer(t.paidBy(), t.paidTo(), t.amount().minor()))
+        List<CurrencyTransfers> currencies = Currencies
+                .withDefaultFirst(netByCurrency.keySet(), group.getCurrency()).stream()
+                .map(currency -> new CurrencyTransfers(
+                        currency, transfers(netByCurrency.getOrDefault(currency, Map.of()))))
                 .toList();
-        return new SettlementSuggestionsResponse(group.getCurrency(), transfers);
+        return new SettlementSuggestionsResponse(group.getCurrency(), currencies);
+    }
+
+    private static List<Transfer> transfers(Map<UUID, Money> net) {
+        return DebtSimplifier.simplify(net).stream()
+                .map(t -> new Transfer(t.paidBy(), t.paidTo(), t.amount().minor()))
+                .toList();
     }
 }

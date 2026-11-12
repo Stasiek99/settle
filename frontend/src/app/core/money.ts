@@ -2,6 +2,8 @@ import { inject, LOCALE_ID, Pipe, PipeTransform } from '@angular/core';
 
 const DEFAULT_DIGITS = 2;
 
+export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CHF', 'CZK'];
+
 export function minorUnitDigits(currency: string): number {
   try {
     return (

@@ -85,6 +85,23 @@ describe('SettlementFormPage', () => {
     expect(text(fixture)).toMatch(/Bob pays Ann PLN\s603\.49/);
   });
 
+  it('records a suggested transfer in the currency it was suggested in', async () => {
+    const fixture = await render({ from: 'u2', to: 'u1', amount: '1050', currency: 'EUR' });
+
+    expect(text(fixture)).toMatch(/Bob pays Ann €10\.50/);
+    submit(fixture);
+
+    expect(expectPost().request.body).toMatchObject({ amount: 1050, currency: 'EUR' });
+  });
+
+  it('falls back to the group currency for an unknown one', async () => {
+    const fixture = await render({ from: 'u2', to: 'u1', amount: '1050', currency: 'XXX' });
+
+    submit(fixture);
+
+    expect(expectPost().request.body).toMatchObject({ currency: 'PLN' });
+  });
+
   it('ignores a transfer between strangers', async () => {
     const fixture = await render({ from: 'intruder', to: 'someone', amount: '500' });
 

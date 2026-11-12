@@ -4,6 +4,7 @@ import dev.settle.common.InvalidRequestException;
 import dev.settle.common.ResourceNotFoundException;
 import dev.settle.expense.CreateExpenseRequest.Participant;
 import dev.settle.group.Group;
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.group.GroupAccess;
 import dev.settle.group.GroupRepository;
 import dev.settle.group.MembershipRepository;
@@ -60,13 +61,16 @@ class ExpenseServiceTest {
     @Mock
     private GroupAccess access;
 
+    @Mock
+    private GroupCacheEvictor cacheEvictor;
+
     private ExpenseService service;
     private Group flat;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-09T12:00:00Z"), ZoneOffset.UTC);
-        service = new ExpenseService(groups, memberships, expenses, users, access, clock);
+        service = new ExpenseService(groups, memberships, expenses, users, access, cacheEvictor, clock);
 
         User ann = TestEntities.withId(new User("ann@example.com", "Ann"), ANN);
         flat = TestEntities.group("Flat", "PLN", ann);
@@ -97,6 +101,21 @@ class ExpenseServiceTest {
 
     private static List<Long> amounts(ExpenseResponse response) {
         return response.splits().stream().map(ExpenseResponse.SplitResponse::amount).toList();
+    }
+
+    @Test
+    void evictsTheCachedGroupDataWhenAnExpenseIsCreated() {
+        service.create(flat.getId(), equalSplit(1000, equalBetween(ANN, BOB)));
+
+        verify(cacheEvictor).evictGroupData(flat.getId());
+    }
+
+    @Test
+    void rejectedExpensesLeaveTheCacheAlone() {
+        assertThatThrownBy(() -> service.create(flat.getId(), equalSplit(1000, equalBetween(ANN, ANN))))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(cacheEvictor, never()).evictGroupData(any());
     }
 
     @Test
@@ -193,10 +212,14 @@ class ExpenseServiceTest {
     }
 
     @Test
-    void rejectsACurrencyDifferentFromTheGroups() {
-        var request = new CreateExpenseRequest("X", 1000L, "EUR", ANN, SplitType.EQUAL, null, equalBetween(ANN));
+    void acceptsACurrencyDifferentFromTheGroupsAndSplitsInThatCurrency() {
+        var request = new CreateExpenseRequest("Hotel", 1001L, "eur", ANN, SplitType.EQUAL, null,
+                equalBetween(ANN, BOB));
 
-        assertRejected(request, "does not match the group currency");
+        ExpenseResponse response = service.create(flat.getId(), request);
+
+        assertThat(response.currency()).isEqualTo("EUR");
+        assertThat(amounts(response)).containsExactly(501L, 500L);
     }
 
     @Test

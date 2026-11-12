@@ -76,9 +76,14 @@ export interface MemberBalance {
   balance: number;
 }
 
-export interface GroupBalances {
+export interface CurrencyBalances {
   currency: string;
   balances: MemberBalance[];
+}
+
+export interface GroupBalances {
+  defaultCurrency: string;
+  currencies: CurrencyBalances[];
 }
 
 export interface SuggestedTransfer {
@@ -87,9 +92,14 @@ export interface SuggestedTransfer {
   amount: number;
 }
 
-export interface SettlementSuggestions {
+export interface CurrencyTransfers {
   currency: string;
   transfers: SuggestedTransfer[];
+}
+
+export interface SettlementSuggestions {
+  defaultCurrency: string;
+  currencies: CurrencyTransfers[];
 }
 
 export interface ParticipantRequest {

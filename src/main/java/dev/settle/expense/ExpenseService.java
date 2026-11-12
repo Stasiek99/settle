@@ -1,5 +1,6 @@
 package dev.settle.expense;
 
+import dev.settle.cache.GroupCacheEvictor;
 import dev.settle.common.Currencies;
 import dev.settle.common.ETags;
 import dev.settle.common.ForbiddenException;
@@ -45,15 +46,18 @@ public class ExpenseService {
     private final ExpenseRepository expenses;
     private final UserRepository users;
     private final GroupAccess access;
+    private final GroupCacheEvictor cacheEvictor;
     private final Clock clock;
 
     public ExpenseService(GroupRepository groups, MembershipRepository memberships,
-                          ExpenseRepository expenses, UserRepository users, GroupAccess access, Clock clock) {
+                          ExpenseRepository expenses, UserRepository users, GroupAccess access,
+                          GroupCacheEvictor cacheEvictor, Clock clock) {
         this.groups = groups;
         this.memberships = memberships;
         this.expenses = expenses;
         this.users = users;
         this.access = access;
+        this.cacheEvictor = cacheEvictor;
         this.clock = clock;
     }
 
@@ -63,7 +67,7 @@ public class ExpenseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
 
         long cursor = group.getRotationCursor();
-        Prepared prepared = prepare(groupId, group, request, cursor);
+        Prepared prepared = prepare(groupId, request, cursor);
 
         LocalDate date = request.expenseDate() != null ? request.expenseDate() : LocalDate.now(clock);
         Expense expense = new Expense(group, users.getReferenceById(request.paidBy()),
@@ -73,6 +77,7 @@ public class ExpenseService {
         expense.requireSplitsAddUp();
 
         expenses.save(expense);
+        cacheEvictor.evictGroupData(groupId);
         if (prepared.split().leftoverUnits() > 0) {
             groups.advanceRotationCursor(groupId, prepared.split().leftoverUnits());
         }
@@ -86,14 +91,18 @@ public class ExpenseService {
     @Transactional
     public ExpenseResponse update(UUID groupId, UUID expenseId, UUID actingUserId, String ifMatch,
                                   CreateExpenseRequest request) {
-        Group group = groups.findById(groupId)
-                .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
+        if (!groups.existsById(groupId)) {
+            throw new ResourceNotFoundException("Group", groupId);
+        }
         Expense expense = expenses.findByIdAndGroupId(expenseId, groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense", expenseId));
         requireCanModify(expense, groupId, actingUserId);
         requireCurrentVersion(expense, ifMatch);
 
-        Prepared prepared = prepare(groupId, group, request, expense.getSplitCursor());
+        Prepared prepared = prepare(groupId, request, expense.getSplitCursor());
+        if (!prepared.total().currency().equals(expense.getAmount().currency())) {
+            throw new InvalidRequestException("The currency of an expense cannot be changed; delete it and add a new one");
+        }
         LocalDate date = request.expenseDate() != null ? request.expenseDate() : expense.getExpenseDate();
         expense.update(users.getReferenceById(request.paidBy()), request.description(),
                 prepared.total(), request.splitType(), date);
@@ -104,6 +113,7 @@ public class ExpenseService {
         expense.requireSplitsAddUp();
 
         expenses.flush();
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("expense.id", expenseId)
                 .addKeyValue("user.id", actingUserId).addKeyValue("expense.version", expense.getVersion())
                 .log("Expense updated");
@@ -119,6 +129,7 @@ public class ExpenseService {
 
         expenses.delete(expense);
         expenses.flush();
+        cacheEvictor.evictGroupData(groupId);
         log.atInfo().addKeyValue("group.id", groupId).addKeyValue("expense.id", expenseId)
                 .addKeyValue("user.id", actingUserId).log("Expense deleted");
     }
@@ -139,12 +150,8 @@ public class ExpenseService {
     private record Prepared(List<Participant> participants, Money total, SplitResult split) {
     }
 
-    private Prepared prepare(UUID groupId, Group group, CreateExpenseRequest request, long cursor) {
+    private Prepared prepare(UUID groupId, CreateExpenseRequest request, long cursor) {
         Currency currency = Currencies.parse(request.currency());
-        if (!currency.getCurrencyCode().equals(group.getCurrency())) {
-            throw new InvalidRequestException("Expense currency %s does not match the group currency %s"
-                    .formatted(currency.getCurrencyCode(), group.getCurrency()));
-        }
 
         List<Participant> participants = request.participants().stream()
                 .sorted(Comparator.comparing(Participant::userId))

@@ -110,7 +110,7 @@ class SettlementApiTest {
     }
 
     private static String balanceOf(UUID user) {
-        return "$.balances[?(@.userId == '%s')].balance".formatted(user);
+        return "$.currencies[0].balances[?(@.userId == '%s')].balance".formatted(user);
     }
 
     @Test
