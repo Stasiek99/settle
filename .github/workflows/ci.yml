@@ -93,6 +93,23 @@ jobs:
         run: |
           curl --silent --head http://localhost:8081/ | grep -i "^content-security-policy: default-src 'self'; script-src 'self'"
 
+      - name: Check that failed logins are rate limited and a forged client address does not help
+        run: |
+          jar=$(mktemp)
+          curl --fail --silent --cookie-jar "$jar" --output /dev/null http://localhost:8081/api/auth/csrf
+          token=$(awk '$6 == "XSRF-TOKEN" {print $7}' "$jar")
+          attempt() {
+            curl --silent --output /dev/null --write-out '%{http_code}' --cookie "$jar" \
+              --header "X-XSRF-TOKEN: $token" --header 'Content-Type: application/json' \
+              --header "X-Forwarded-For: 10.9.9.$1" \
+              --data '{"email":"nobody@example.com","password":"wrong-password"}' \
+              http://localhost:8081/api/auth/login
+          }
+          for i in 1 2 3 4 5; do
+            test "$(attempt "$i")" = 401
+          done
+          test "$(attempt 99)" = 429
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.app.yaml logs

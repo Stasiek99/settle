@@ -1,3 +1,8 @@
+server:
+  # Behind the web container the socket peer is the proxy; Tomcat takes the client address from the
+  # rightmost X-Forwarded-For entry that is not a trusted (private-range) proxy, so a forged header is ignored.
+  forward-headers-strategy: native
+
 spring:
   application:
     name: settle
@@ -33,6 +38,14 @@ settle:
       api-path: /api
       auth-path: /api/auth
       secure-cookies: true
+    # Counts failed sign-ins in a fixed window that starts at the first failure; at the limit the key is
+    # blocked until the window ends. Local to each instance, like the caches.
+    login-rate-limit:
+      window: 15m
+      max-per-client-and-account: 5
+      max-per-client: 20
+      max-per-account: 30
+      max-tracked-keys: 100000
 
   cache:
     # In-process (Caffeine): each instance keeps its own copy, so the TTLs bound how stale another
