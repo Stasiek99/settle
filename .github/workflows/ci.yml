@@ -129,6 +129,31 @@ jobs:
           [[ "$location" == /api/groups/* ]]
           curl --fail --silent --cookie "$jar" --output /dev/null "http://localhost:8081$location"
 
+      - name: Check that registration and session refresh are rate limited per client
+        run: |
+          jar=$(mktemp)
+          api=http://localhost:8081/api
+          curl --fail --silent --cookie-jar "$jar" --output /dev/null $api/auth/csrf
+          token=$(awk '$6 == "XSRF-TOKEN" {print $7}' "$jar")
+          post() {
+            curl --silent --output /dev/null --write-out '%{http_code}' --request POST --cookie "$jar"               --header "X-XSRF-TOKEN: $token" --header 'Content-Type: application/json'               --header "X-Forwarded-For: 10.8.$RANDOM.$RANDOM" "${@:2}" "$api$1"
+          }
+          register() {
+            post /auth/register --data '{"email":"user'"$1"'@example.com","displayName":"U","password":"correct-horse-battery"}'
+          }
+          blocked=
+          for i in $(seq 1 12); do
+            if [[ "$(register "$i")" == 429 ]]; then blocked=$i; break; fi
+          done
+          echo "Registration blocked at attempt: $blocked"
+          [[ -n "$blocked" && "$blocked" -le 11 ]]
+          blocked=
+          for i in $(seq 1 62); do
+            if [[ "$(post /auth/refresh)" == 429 ]]; then blocked=$i; break; fi
+          done
+          echo "Refresh blocked at attempt: $blocked"
+          [[ -n "$blocked" && "$blocked" -le 61 ]]
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.app.yaml logs

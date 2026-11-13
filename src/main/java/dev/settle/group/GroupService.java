@@ -10,6 +10,7 @@ import dev.settle.user.User;
 import dev.settle.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@EnableConfigurationProperties(GroupProperties.class)
 @Transactional(readOnly = true)
 public class GroupService {
 
@@ -30,13 +32,15 @@ public class GroupService {
     private final MembershipRepository memberships;
     private final UserRepository users;
     private final GroupCacheEvictor cacheEvictor;
+    private final int maxMembers;
 
     public GroupService(GroupRepository groups, MembershipRepository memberships, UserRepository users,
-                        GroupCacheEvictor cacheEvictor) {
+                        GroupCacheEvictor cacheEvictor, GroupProperties properties) {
         this.groups = groups;
         this.memberships = memberships;
         this.users = users;
         this.cacheEvictor = cacheEvictor;
+        this.maxMembers = properties.maxMembers();
     }
 
     @Transactional
@@ -73,10 +77,14 @@ public class GroupService {
 
     @Transactional
     public MembershipResponse addMember(UUID groupId, AddMemberRequest request) {
-        Group group = findGroup(groupId);
+        Group group = groups.findByIdForUpdate(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
         User user = findUser(request.userId());
         if (memberships.existsByGroupIdAndUserId(groupId, user.getId())) {
             throw new ConflictException("User is already a member of this group");
+        }
+        if (memberships.countByGroupId(groupId) >= maxMembers) {
+            throw new ConflictException("A group can have at most " + maxMembers + " members");
         }
         Membership saved = memberships.save(new Membership(group, user, MembershipRole.MEMBER));
         cacheEvictor.evictGroupData(groupId);

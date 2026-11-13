@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -48,7 +47,6 @@ class GroupServiceTest {
     @Mock
     private GroupCacheEvictor cacheEvictor;
 
-    @InjectMocks
     private GroupService service;
 
     private User ann;
@@ -60,6 +58,7 @@ class GroupServiceTest {
         ann = TestEntities.user("ann@example.com", "Ann");
         bob = TestEntities.user("bob@example.com", "Bob");
         flat = TestEntities.group("Flat", "PLN", ann);
+        service = new GroupService(groups, memberships, users, cacheEvictor, new GroupProperties(3));
     }
 
     @Test
@@ -123,7 +122,7 @@ class GroupServiceTest {
 
     @Test
     void addMemberAddsUserWithMemberRole() {
-        when(groups.findById(flat.getId())).thenReturn(Optional.of(flat));
+        when(groups.findByIdForUpdate(flat.getId())).thenReturn(Optional.of(flat));
         when(users.findById(bob.getId())).thenReturn(Optional.of(bob));
         when(memberships.existsByGroupIdAndUserId(flat.getId(), bob.getId())).thenReturn(false);
         when(memberships.save(any(Membership.class))).thenAnswer(inv -> TestEntities.withId(inv.getArgument(0)));
@@ -138,7 +137,7 @@ class GroupServiceTest {
 
     @Test
     void addMemberRejectsUserWhoIsAlreadyInTheGroup() {
-        when(groups.findById(flat.getId())).thenReturn(Optional.of(flat));
+        when(groups.findByIdForUpdate(flat.getId())).thenReturn(Optional.of(flat));
         when(users.findById(bob.getId())).thenReturn(Optional.of(bob));
         when(memberships.existsByGroupIdAndUserId(flat.getId(), bob.getId())).thenReturn(true);
 
@@ -150,9 +149,36 @@ class GroupServiceTest {
     }
 
     @Test
+    void addMemberRejectsANewMemberWhenTheGroupIsFull() {
+        when(groups.findByIdForUpdate(flat.getId())).thenReturn(Optional.of(flat));
+        when(users.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(memberships.existsByGroupIdAndUserId(flat.getId(), bob.getId())).thenReturn(false);
+        when(memberships.countByGroupId(flat.getId())).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.addMember(flat.getId(), new AddMemberRequest(bob.getId())))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("A group can have at most 3 members");
+
+        verify(memberships, never()).save(any());
+        verify(cacheEvictor, never()).evictGroupData(any());
+    }
+
+    @Test
+    void addMemberAcceptsTheLastFreeSlot() {
+        when(groups.findByIdForUpdate(flat.getId())).thenReturn(Optional.of(flat));
+        when(users.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(memberships.existsByGroupIdAndUserId(flat.getId(), bob.getId())).thenReturn(false);
+        when(memberships.countByGroupId(flat.getId())).thenReturn(2L);
+        when(memberships.save(any(Membership.class))).thenAnswer(inv -> TestEntities.withId(inv.getArgument(0)));
+
+        assertThat(service.addMember(flat.getId(), new AddMemberRequest(bob.getId())).userId())
+                .isEqualTo(bob.getId());
+    }
+
+    @Test
     void addMemberFailsForUnknownGroup() {
         UUID unknown = UUID.randomUUID();
-        when(groups.findById(unknown)).thenReturn(Optional.empty());
+        when(groups.findByIdForUpdate(unknown)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.addMember(unknown, new AddMemberRequest(bob.getId())))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -163,7 +189,7 @@ class GroupServiceTest {
     @Test
     void addMemberFailsForUnknownUser() {
         UUID unknown = UUID.randomUUID();
-        when(groups.findById(flat.getId())).thenReturn(Optional.of(flat));
+        when(groups.findByIdForUpdate(flat.getId())).thenReturn(Optional.of(flat));
         when(users.findById(unknown)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.addMember(flat.getId(), new AddMemberRequest(unknown)))

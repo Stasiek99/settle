@@ -21,11 +21,14 @@ public class AuthController {
     private final AuthService service;
     private final SessionCookies cookies;
     private final LoginRateLimiter loginRateLimiter;
+    private final AuthRateLimiter authRateLimiter;
 
-    public AuthController(AuthService service, SessionCookies cookies, LoginRateLimiter loginRateLimiter) {
+    public AuthController(AuthService service, SessionCookies cookies, LoginRateLimiter loginRateLimiter,
+                          AuthRateLimiter authRateLimiter) {
         this.service = service;
         this.cookies = cookies;
         this.loginRateLimiter = loginRateLimiter;
+        this.authRateLimiter = authRateLimiter;
     }
 
     @GetMapping("/csrf")
@@ -34,7 +37,9 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request,
+                                                 HttpServletRequest httpRequest) {
+        authRateLimiter.countRegistration(httpRequest.getRemoteAddr());
         return ResponseEntity.status(HttpStatus.CREATED).body(service.register(request));
     }
 
@@ -57,6 +62,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        authRateLimiter.countRefresh(request.getRemoteAddr());
         try {
             String refreshToken = cookies.refreshToken(request)
                     .orElseThrow(() -> new AuthenticationFailedException("The session has ended. Please sign in again."));

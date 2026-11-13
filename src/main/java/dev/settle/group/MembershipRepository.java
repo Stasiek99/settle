@@ -17,10 +17,9 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
     List<Membership> findAllByGroupId(UUID groupId);
 
     @EntityGraph(attributePaths = "group")
-    List<Membership> findAllByUserId(UUID userId);
-
-    @EntityGraph(attributePaths = "group")
     Page<Membership> findByUserId(UUID userId, Pageable pageable);
+
+    long countByGroupId(UUID groupId);
 
     boolean existsByGroupIdAndUserId(UUID groupId, UUID userId);
 

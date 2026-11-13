@@ -38,9 +38,6 @@ class ExpenseConcurrencyTest {
     private ExpenseService expenseService;
 
     @Autowired
-    private ExpenseRepository expenses;
-
-    @Autowired
     private GroupRepository groups;
 
     @Autowired
@@ -104,9 +101,16 @@ class ExpenseConcurrencyTest {
         }
 
         Map<UUID, Long> paid = new HashMap<>();
-        for (Expense expense : expenses.findAllByGroupIdOrderByExpenseDateDescCreatedAtDesc(groupId)) {
-            expense.getSplits().forEach(s -> paid.merge(s.getUser().getId(), s.getAmountMinor(), Long::sum));
-        }
+        jdbc.query("""
+                select s.user_id, sum(s.amount_minor) as total
+                from expense_splits s join expenses e on e.id = s.expense_id
+                where e.group_id = ?
+                group by s.user_id
+                """,
+                rs -> {
+                    paid.put(rs.getObject("user_id", UUID.class), rs.getLong("total"));
+                },
+                groupId);
 
         assertThat(paid).hasSize(3);
         assertThat(paid.values()).containsOnly(8000L);

@@ -29,6 +29,9 @@ settle:
     # Prefix the browser sees in front of the API when a proxy strips it (the web container maps /api/ to /).
     # Used for the Location header; empty when the API is reached directly.
     public-path: ""
+  groups:
+    # Balances and suggestions are computed over every member, so a group is capped.
+    max-members: 16
   security:
     jwt:
       secret: ${JWT_SECRET}
@@ -49,6 +52,16 @@ settle:
       max-per-client-and-account: 5
       max-per-client: 20
       max-per-account: 30
+      max-tracked-keys: 100000
+    # Every call counts, per client address. Registration is meant to be rare; a refresh happens about once per
+    # access token, so the limit leaves room for several people behind one address.
+    rate-limit:
+      register:
+        window: 1h
+        max-per-client: 10
+      refresh:
+        window: 15m
+        max-per-client: 60
       max-tracked-keys: 100000
 
   cache:
