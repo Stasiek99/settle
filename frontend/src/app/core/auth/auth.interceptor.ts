@@ -32,8 +32,11 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         return throwError(() => error);
       }
       return auth.refresh().pipe(
-        // Even a failed refresh is worth one retry: another tab may have just renewed the cookies.
-        catchError(() => of(undefined)),
+        // A refused refresh is worth one retry: another tab may have just renewed the cookies. Any other
+        // failure (rate limit, server down) says nothing about the session, so it must not end it.
+        catchError((refreshError: unknown) =>
+          isUnauthorized(refreshError) ? of(undefined) : throwError(() => refreshError),
+        ),
         switchMap(() => next(request)),
         catchError((retryError: unknown) => {
           if (isUnauthorized(retryError)) {

@@ -119,6 +119,32 @@ describe('authInterceptor', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('keeps the session and the page when the refresh is rate limited', () => {
+    const errors: number[] = [];
+    client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
+
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http
+      .expectOne('/api/auth/refresh')
+      .flush(null, { status: 429, statusText: 'Too Many Requests' });
+
+    http.expectNone('/api/groups');
+    expect(errors).toEqual([429]);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the session when the refresh fails because the server is down', () => {
+    const errors: number[] = [];
+    client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
+
+    http.expectOne('/api/groups').flush(null, UNAUTHORIZED);
+    http.expectOne('/api/auth/refresh').flush(null, { status: 503, statusText: 'Unavailable' });
+
+    http.expectNone('/api/groups');
+    expect(errors).toEqual([503]);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('does not log the user out because of an unrelated error on the repeated call', () => {
     const errors: number[] = [];
     client.get('/api/groups').subscribe({ error: (e) => errors.push(e.status) });
