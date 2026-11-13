@@ -29,6 +29,9 @@ settle:
     # Prefix the browser sees in front of the API when a proxy strips it (the web container maps /api/ to /).
     # Used for the Location header; empty when the API is reached directly.
     public-path: ""
+  groups:
+    # Balances and suggestions are computed over every member, so a group is capped.
+    max-members: 16
   security:
     jwt:
       secret: ${JWT_SECRET}
