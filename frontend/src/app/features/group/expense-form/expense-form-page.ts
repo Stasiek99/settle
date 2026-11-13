@@ -36,7 +36,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GroupsApi } from '../../../core/groups/groups.api';
 import { Expense, SplitType } from '../../../core/models';
-import { CURRENCIES, formatMoney, minorUnitDigits } from '../../../core/money';
+import { currencyChoices, formatMoney, minorUnitDigits } from '../../../core/money';
 import { problemMessage } from '../../../core/problem';
 import { GroupStore } from '../group-store';
 import {
@@ -50,6 +50,7 @@ import {
   ParticipantInput,
   parseDate,
   percentsFromShares,
+  requantize,
   splitProblem,
   toMajor,
   toMinor,
@@ -102,7 +103,6 @@ export class ExpenseFormPage {
     return group;
   })();
 
-  protected readonly currencyOptions = [...new Set([this.group.currency, ...CURRENCIES])];
   protected readonly currency = signal(this.group.currency);
   protected readonly digits = computed(() => minorUnitDigits(this.currency()));
   protected readonly members = this.store.members();
@@ -119,6 +119,10 @@ export class ExpenseFormPage {
   protected readonly loadingExisting = signal(false);
   protected readonly loadError = signal<string | null>(null);
   protected readonly stale = signal(false);
+
+  protected readonly currencyOptions = computed(() =>
+    currencyChoices(this.group.currency, this.existing()?.currency),
+  );
 
   protected readonly saving = signal(false);
   protected readonly submitted = signal(false);
@@ -234,7 +238,11 @@ export class ExpenseFormPage {
     this.form.controls.currency.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((code) => {
+        const previousDigits = this.digits();
         this.currency.set(code);
+        if (this.digits() < previousDigits) {
+          this.requantizeAmounts();
+        }
         this.form.controls.amount.updateValueAndValidity();
       });
 
@@ -245,6 +253,15 @@ export class ExpenseFormPage {
           this.splitEvenly();
         }
       });
+  }
+
+  private requantizeAmounts(): void {
+    const digits = this.digits();
+    const total = this.form.controls.amount;
+    total.setValue(requantize(total.value, digits));
+    this.participants.controls.forEach((row) =>
+      row.controls.amount.setValue(requantize(row.controls.amount.value, digits)),
+    );
   }
 
   protected reload(): void {

@@ -94,6 +94,26 @@ describe('SettlementFormPage', () => {
     expect(expectPost().request.body).toMatchObject({ amount: 1050, currency: 'EUR' });
   });
 
+  it('keeps a real currency that is not among the usual ones', async () => {
+    const fixture = await render({ from: 'u2', to: 'u1', amount: '5000', currency: 'JPY' });
+
+    expect(query(fixture, '#currency')?.textContent).toContain('JPY');
+    submit(fixture);
+
+    expect(expectPost().request.body).toMatchObject({ amount: 5000, currency: 'JPY' });
+  });
+
+  it('rounds the typed amount when switching to a currency with fewer decimals', async () => {
+    const fixture = await render();
+    setNumber(fixture, '#amount', '10.40');
+    await settle(fixture);
+
+    fixture.componentInstance['form'].controls.currency.setValue('JPY');
+    await settle(fixture);
+
+    expect(fixture.componentInstance['form'].controls.amount.value).toBe(10);
+  });
+
   it('falls back to the group currency for an unknown one', async () => {
     const fixture = await render({ from: 'u2', to: 'u1', amount: '1050', currency: 'XXX' });
 

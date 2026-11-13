@@ -29,9 +29,14 @@ import { SelectModule } from 'primeng/select';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { GroupsApi } from '../../../core/groups/groups.api';
-import { CURRENCIES, formatMoney, minorUnitDigits } from '../../../core/money';
+import {
+  currencyChoices,
+  formatMoney,
+  isKnownCurrency,
+  minorUnitDigits,
+} from '../../../core/money';
 import { problemMessage } from '../../../core/problem';
-import { MAX_AMOUNT_MINOR, toMinor } from '../expense-form/expense-form.logic';
+import { MAX_AMOUNT_MINOR, requantize, toMinor } from '../expense-form/expense-form.logic';
 import { GroupStore } from '../group-store';
 import { buildSettlementRequest, prefillFromParams } from './settlement-form.logic';
 
@@ -72,7 +77,7 @@ export class SettlementFormPage {
     return group;
   })();
 
-  protected readonly currencyOptions = [...new Set([this.group.currency, ...CURRENCIES])];
+  protected readonly currencyOptions = signal(currencyChoices(this.group.currency));
   protected readonly currency = signal(this.group.currency);
   protected readonly digits = computed(() => minorUnitDigits(this.currency()));
   protected readonly members = this.store.members();
@@ -130,16 +135,20 @@ export class SettlementFormPage {
     this.form.controls.currency.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((code) => {
+        const previousDigits = this.digits();
         this.currency.set(code);
+        if (this.digits() < previousDigits) {
+          const amount = this.form.controls.amount;
+          amount.setValue(requantize(amount.value, this.digits()));
+        }
         this.form.controls.amount.updateValueAndValidity();
       });
 
     effect(() => {
       const requested = this.currencyParam()?.toUpperCase();
       const currency =
-        requested !== undefined && this.currencyOptions.includes(requested)
-          ? requested
-          : this.group.currency;
+        requested !== undefined && isKnownCurrency(requested) ? requested : this.group.currency;
+      untracked(() => this.currencyOptions.set(currencyChoices(this.group.currency, currency)));
       const prefill = prefillFromParams(
         { from: this.from(), to: this.to(), amount: this.amount() },
         this.members.map((member) => member.userId),

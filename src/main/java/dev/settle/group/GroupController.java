@@ -3,6 +3,7 @@ package dev.settle.group;
 import dev.settle.auth.CurrentUser;
 import dev.settle.common.ETags;
 import dev.settle.common.PageQuery;
+import dev.settle.common.ResourceLocations;
 import dev.settle.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,17 +27,18 @@ public class GroupController {
 
     private final GroupService service;
     private final GroupAccess access;
+    private final ResourceLocations locations;
 
-    public GroupController(GroupService service, GroupAccess access) {
+    public GroupController(GroupService service, GroupAccess access, ResourceLocations locations) {
         this.service = service;
         this.access = access;
+        this.locations = locations;
     }
 
     @PostMapping
     public ResponseEntity<GroupResponse> create(@Valid @RequestBody CreateGroupRequest request, CurrentUser user) {
         GroupResponse created = service.create(request, user.id());
-        var location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}").buildAndExpand(created.id()).toUri();
+        var location = locations.ofChild(created.id());
         return ResponseEntity.created(location).eTag(String.valueOf(created.version())).body(created);
     }
 

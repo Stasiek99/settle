@@ -110,6 +110,25 @@ jobs:
           done
           test "$(attempt 99)" = 429
 
+      - name: Check that Location headers carry the /api prefix of the web container
+        run: |
+          jar=$(mktemp)
+          api=http://localhost:8081/api
+          curl --fail --silent --cookie-jar "$jar" --output /dev/null $api/auth/csrf
+          token=$(awk '$6 == "XSRF-TOKEN" {print $7}' "$jar")
+          post() {
+            curl --fail --silent --cookie "$jar" --cookie-jar "$jar" --header "X-XSRF-TOKEN: $token" \
+              --header 'Content-Type: application/json' --data "$2" "${@:3}" "$api$1"
+          }
+          post /auth/register '{"email":"ci@example.com","displayName":"Ci","password":"correct-horse-battery"}' --output /dev/null
+          post /auth/login '{"email":"ci@example.com","password":"correct-horse-battery"}' --output /dev/null
+          token=$(awk '$6 == "XSRF-TOKEN" {print $7}' "$jar")
+          location=$(post /groups '{"name":"Trip","currency":"EUR"}' --dump-header - --output /dev/null \
+            | tr -d '\r' | awk 'tolower($1) == "location:" {print $2}')
+          echo "Location: $location"
+          [[ "$location" == /api/groups/* ]]
+          curl --fail --silent --cookie "$jar" --output /dev/null "http://localhost:8081$location"
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.app.yaml logs

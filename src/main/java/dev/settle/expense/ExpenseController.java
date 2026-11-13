@@ -1,6 +1,7 @@
 package dev.settle.expense;
 
 import dev.settle.common.PageQuery;
+import dev.settle.common.ResourceLocations;
 import dev.settle.common.PageResponse;
 import dev.settle.auth.CurrentUser;
 import jakarta.validation.Valid;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.UUID;
 
@@ -25,17 +25,18 @@ import java.util.UUID;
 public class ExpenseController {
 
     private final ExpenseService service;
+    private final ResourceLocations locations;
 
-    public ExpenseController(ExpenseService service) {
+    public ExpenseController(ExpenseService service, ResourceLocations locations) {
         this.service = service;
+        this.locations = locations;
     }
 
     @PostMapping
     public ResponseEntity<ExpenseResponse> create(
             @PathVariable UUID groupId, @Valid @RequestBody CreateExpenseRequest request) {
         ExpenseResponse created = service.create(groupId, request);
-        var location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}").buildAndExpand(created.id()).toUri();
+        var location = locations.ofChild(created.id());
         return ResponseEntity.created(location).eTag(String.valueOf(created.version())).body(created);
     }
 
