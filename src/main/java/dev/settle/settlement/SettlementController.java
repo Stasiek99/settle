@@ -1,6 +1,7 @@
 package dev.settle.settlement;
 
 import dev.settle.common.PageQuery;
+import dev.settle.common.ResourceLocations;
 import dev.settle.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.UUID;
 
@@ -20,17 +20,18 @@ import java.util.UUID;
 public class SettlementController {
 
     private final SettlementService service;
+    private final ResourceLocations locations;
 
-    public SettlementController(SettlementService service) {
+    public SettlementController(SettlementService service, ResourceLocations locations) {
         this.service = service;
+        this.locations = locations;
     }
 
     @PostMapping
     public ResponseEntity<SettlementResponse> create(
             @PathVariable UUID groupId, @Valid @RequestBody CreateSettlementRequest request) {
         SettlementResponse created = service.create(groupId, request);
-        var location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}").buildAndExpand(created.id()).toUri();
+        var location = locations.ofChild(created.id());
         return ResponseEntity.created(location).body(created);
     }
 

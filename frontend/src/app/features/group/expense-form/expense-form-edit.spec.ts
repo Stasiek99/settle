@@ -100,6 +100,22 @@ describe('ExpenseFormPage in edit mode', () => {
     http.expectOne('/api/groups/g1/expenses/e1').flush(expense());
   });
 
+  it('shows the currency of an expense that is not among the usual ones', async () => {
+    const fixture = await render(
+      expense({
+        currency: 'JPY',
+        amount: 5000,
+        splits: [
+          { userId: 'u1', amount: 2500 },
+          { userId: 'u2', amount: 2500 },
+        ],
+      }),
+    );
+
+    expect(query(fixture, '#currency')?.textContent).toContain('JPY');
+    expect(inputValue(fixture, '#amount')).toContain('5,000');
+  });
+
   it('fills the form with what was saved', async () => {
     const fixture = await render();
 

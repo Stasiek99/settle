@@ -222,6 +222,47 @@ describe('ExpenseFormPage', () => {
     expect(inputValue(fixture, 'input[aria-label="Amount for Ann"]')).toContain('50.00');
   });
 
+  it('rounds what was typed to the precision of a currency with fewer decimals', async () => {
+    const fixture = await render();
+    await fillBasics(fixture, '10.40');
+
+    fixture.componentInstance['form'].controls.currency.setValue('JPY');
+    await settle(fixture);
+
+    expect(fixture.componentInstance['form'].controls.amount.value).toBe(10);
+    expect(inputValue(fixture, '#amount')).toContain('10');
+    expect(inputValue(fixture, '#amount')).not.toContain('.4');
+
+    submit(fixture);
+    expect(expectPost().request.body).toMatchObject({ amount: 10, currency: 'JPY' });
+  });
+
+  it('rounds exact shares too, so what is shown is what is sent', async () => {
+    const fixture = await render();
+    await fillBasics(fixture, '100.01');
+    clickText(fixture, 'p-selectbutton', 'Exact');
+    await settle(fixture);
+
+    fixture.componentInstance['form'].controls.currency.setValue('JPY');
+    await settle(fixture);
+
+    const shares = fixture.componentInstance['form'].controls.participants.controls.map(
+      (row) => row.controls.amount.value,
+    );
+    expect(shares).toEqual([50, 50]);
+  });
+
+  it('keeps what was typed when switching to a currency with more decimals', async () => {
+    const fixture = await render();
+    await fillBasics(fixture, '10');
+
+    fixture.componentInstance['form'].controls.currency.setValue('JPY');
+    fixture.componentInstance['form'].controls.currency.setValue('PLN');
+    await settle(fixture);
+
+    expect(fixture.componentInstance['form'].controls.amount.value).toBe(10);
+  });
+
   it('shows the server message and stays on the form when saving fails', async () => {
     const fixture = await render();
     await fillBasics(fixture);

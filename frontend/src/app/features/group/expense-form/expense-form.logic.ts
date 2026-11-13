@@ -28,6 +28,10 @@ export function toMajor(minor: number, digits: number): number {
   return minor / 10 ** digits;
 }
 
+export function requantize(value: number | null, digits: number): number | null {
+  return value === null ? null : toMajor(toMinor(value, digits), digits);
+}
+
 export function toBasisPoints(percent: number): number {
   return Math.round(Number((percent * 100).toPrecision(15)));
 }

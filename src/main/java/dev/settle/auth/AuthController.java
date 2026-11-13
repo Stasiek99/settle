@@ -20,10 +20,12 @@ public class AuthController {
 
     private final AuthService service;
     private final SessionCookies cookies;
+    private final LoginRateLimiter loginRateLimiter;
 
-    public AuthController(AuthService service, SessionCookies cookies) {
+    public AuthController(AuthService service, SessionCookies cookies, LoginRateLimiter loginRateLimiter) {
         this.service = service;
         this.cookies = cookies;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @GetMapping("/csrf")
@@ -38,8 +40,17 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request,
-                                              HttpServletResponse response) {
-        AuthService.Session session = service.login(request);
+                                              HttpServletRequest httpRequest, HttpServletResponse response) {
+        String clientIp = httpRequest.getRemoteAddr();
+        loginRateLimiter.requireAllowed(clientIp, request.email());
+        AuthService.Session session;
+        try {
+            session = service.login(request);
+        } catch (AuthenticationFailedException e) {
+            loginRateLimiter.recordFailure(clientIp, request.email());
+            throw e;
+        }
+        loginRateLimiter.recordSuccess(clientIp, request.email());
         cookies.write(response, session.access(), session.refresh());
         return ResponseEntity.ok(session.user());
     }
