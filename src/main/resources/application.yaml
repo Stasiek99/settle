@@ -53,6 +53,16 @@ settle:
       max-per-client: 20
       max-per-account: 30
       max-tracked-keys: 100000
+    # Every call counts, per client address. Registration is meant to be rare; a refresh happens about once per
+    # access token, so the limit leaves room for several people behind one address.
+    rate-limit:
+      register:
+        window: 1h
+        max-per-client: 10
+      refresh:
+        window: 15m
+        max-per-client: 60
+      max-tracked-keys: 100000
 
   cache:
     # In-process (Caffeine): each instance keeps its own copy, so the TTLs bound how stale another

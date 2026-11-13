@@ -38,7 +38,8 @@ import java.util.Objects;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({JwtProperties.class, SessionProperties.class, LoginRateLimitProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, SessionProperties.class, LoginRateLimitProperties.class,
+        AuthRateLimitProperties.class})
 class SecurityConfig {
 
     @Bean
