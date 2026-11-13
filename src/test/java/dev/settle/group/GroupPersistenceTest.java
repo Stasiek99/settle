@@ -10,6 +10,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
@@ -42,7 +43,7 @@ class GroupPersistenceTest {
         em.flush();
         em.clear();
 
-        List<Membership> found = memberships.findAllByUserId(ann.getId());
+        List<Membership> found = memberships.findByUserId(ann.getId(), PageRequest.of(0, 10)).getContent();
 
         assertThat(found).hasSize(1);
         Membership membership = found.getFirst();
