@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE-WITH-YOUR-RAILWAY-DOMAIN.up.railway.app/:path*"
+      "destination": "https://settle-production-ce6b752f.up.railway.app/:path*"
     },
     {
       "source": "/((?!api/).*)",
