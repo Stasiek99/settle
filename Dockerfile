@@ -4,16 +4,17 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /build
 
-# Resolve dependencies first so this layer is cached until the pom changes.
+# Resolve dependencies first so this layer is cached until the pom changes. No BuildKit cache mounts:
+# Railway requires a service-specific id for them, and the layer already keeps the downloaded jars.
 COPY mvnw ./
 COPY .mvn .mvn
 COPY pom.xml ./
 RUN chmod +x mvnw
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -ntp dependency:go-offline
+RUN ./mvnw -B -ntp dependency:go-offline
 
 # Tests need Docker (Testcontainers), so they run in CI, not inside the image build.
 COPY src src
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -ntp -DskipTests package \
+RUN ./mvnw -B -ntp -DskipTests package \
     && cp target/settle-*.jar application.jar \
     && java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
