@@ -34,8 +34,12 @@ USER settle
 
 # Datasource and JWT_SECRET are supplied at runtime, never baked into the image:
 #   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD, JWT_SECRET
+#
+# -XX:-UseBASE64Intrinsics works around CVE-2026-114938 ("Java4Shell"), a heap OOB write in the
+# JIT's Base64 intrinsic on AVX-512 VBMI x86-64 CPUs, reachable via our JWT (base64url) decoding.
+# Drop it once the base image ships a Temurin build with the upstream fix.
 ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:-UseBASE64Intrinsics"
 
 EXPOSE 8080
 
